@@ -15,6 +15,13 @@ on:
         options:
           - amd64
           - arm64
+  # ISO-only changes rebuild the ISO from the current image
+  push:
+    branches:
+      - main
+    paths:
+      - 'disk_config/**'
+      - '.github/workflows/build-disk.yml'
   # Rebuild the ISO after an image build caused by a push (not the daily scheduled ones)
   workflow_run:
     workflows: ["Build container image"]
@@ -82,11 +89,19 @@ jobs:
           if [ "${DISK_TYPE}" = "anaconda-iso" ]; then CONFIG="disk_config/iso.toml"; fi
           mkdir -p output
 
+          # Same podman storage reset the bootc-image-builder-action did on GitHub runners
+          # (https://github.com/osbuild/bootc-image-builder/issues/446)
+          sudo rm -rf /var/lib/containers/storage
+          sudo mkdir -p /etc/containers
+          printf '[storage]\ndriver = "overlay"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n' \
+            | sudo tee /etc/containers/storage.conf > /dev/null
+
           sudo podman pull "${IMAGE}" 2>&1 | tail -n 3
 
           set +e
           sudo podman run --rm --privileged --pull=newer \
             --security-opt label=type:unconfined_t \
+            --security-opt apparmor=unconfined \
             -v "$(pwd)/${CONFIG}:/config.toml:ro" \
             -v "$(pwd)/output:/output" \
             -v /var/lib/containers/storage:/var/lib/containers/storage \
