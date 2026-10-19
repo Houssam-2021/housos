@@ -42,8 +42,9 @@ jobs:
   build:
     name: Build disk images
     if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
-    # amd64 unless arm64 is picked by hand (push-triggered runs have no inputs)
-    runs-on: ${{ inputs.platform == 'arm64' && 'ubuntu-26.04-arm' || 'ubuntu-26.04' }}
+    # amd64 unless arm64 is picked by hand (push-triggered runs have no inputs).
+    # 24.04: the release the template's disk build was made for.
+    runs-on: ${{ inputs.platform == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     strategy:
       fail-fast: false
       matrix:
@@ -96,6 +97,10 @@ jobs:
           printf '[storage]\ndriver = "overlay"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n' \
             | sudo tee /etc/containers/storage.conf > /dev/null
 
+          # Ubuntu's AppArmor blocks unprivileged user namespaces, which osbuild's sandbox
+          # needs to mount /dev into the image tree
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
           sudo podman pull "${IMAGE}" 2>&1 | tail -n 3
 
           set +e
@@ -114,14 +119,21 @@ jobs:
           set -e
 
           if [ "${status}" -ne 0 ]; then
+            sudo dmesg | grep -i -E 'apparmor|denied|mount' | tail -n 15 > kernel.log || true
             {
               echo '### bootc-image-builder failed'
               echo '```'
               tail -n 80 bib.log
               echo '```'
+              echo '### Kernel messages'
+              echo '```'
+              cat kernel.log
+              echo '```'
             } >> "${GITHUB_STEP_SUMMARY}"
             msg=$(tail -n 40 bib.log | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk 'BEGIN { ORS = "%0A" } { print }')
             echo "::error title=bootc-image-builder failed::${msg}"
+            kmsg=$(sed -e 's/%/%25/g' -e 's/\r/%0D/g' kernel.log | awk 'BEGIN { ORS = "%0A" } { print }')
+            echo "::error title=kernel messages::${kmsg:-none}"
             exit "${status}"
           fi
 
