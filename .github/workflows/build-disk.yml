@@ -15,12 +15,11 @@ on:
         options:
           - amd64
           - arm64
-  push:
-    branches:
-      - main
-    paths:
-      - 'disk_config/**'
-      - '.github/workflows/build-disk.yml'
+  # Rebuild the ISO after an image build caused by a push (not the daily scheduled ones)
+  workflow_run:
+    workflows: ["Build container image"]
+    types: [completed]
+    branches: [main]
 
 env:
   IMAGE_NAME: "houssamos" # keep in sync with IMAGE_NAME in image-template.env
@@ -35,6 +34,7 @@ concurrency:
 jobs:
   build:
     name: Build disk images
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     # amd64 unless arm64 is picked by hand (push-triggered runs have no inputs)
     runs-on: ${{ inputs.platform == 'arm64' && 'ubuntu-26.04-arm' || 'ubuntu-26.04' }}
     strategy:
@@ -121,7 +121,7 @@ jobs:
           name: houssamos-${{ matrix.disk-type }}
           path: ${{ steps.build.outputs.output-directory }}
           if-no-files-found: error
-          retention-days: 0
+          retention-days: 14
           compression-level: 0
           overwrite: true
 
