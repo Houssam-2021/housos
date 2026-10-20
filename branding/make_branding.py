@@ -5,6 +5,7 @@ Source files (replace any of them, then run this script again):
   src/boot-animation.mp4  boot animation, logo on a white background, loops seamlessly
   src/logo-wordmark.png   "HoussamOS" logo on a white background
   src/wallpaper.png       desktop, lock screen and login background
+  src/dock-glass.jpg      glass tray used as the dock background (TRAY_* below say where it is)
 
 Needs Python 3 with Pillow and numpy, and ffmpeg on PATH.
 Usage: python branding/make_branding.py [--preview]
@@ -19,7 +20,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "branding" / "src"
@@ -194,6 +195,166 @@ def wallpaper(path):
     print(f"wallpaper: {img.width}x{img.height}")
 
 
+THEME_ID = "houssamos-glass"
+DOCK_HEIGHT = 84                       # logical px; must match the layout script
+# Where things are in src/dock-glass.jpg (source pixels)
+TRAY_CROP = (213, 270, 1188, 580)      # tray plus its shadow
+TRAY_BODY = (233, 282, 1168, 530)      # the glass itself (blur goes behind this)
+TRAY_ROWS = (340, 455)                 # top rim ends / front wall starts: the floor between stretches
+TRAY_CAP = 120                         # width of each rounded end, kept unstretched
+
+
+def glass_layer(path):
+    """Turn a photo of glass on a light background into a layer that works on any wallpaper.
+
+    Each pixel is compared with the background around it: darker means glass shading (kept as
+    black with alpha), lighter means a highlight (white with alpha). The background is estimated
+    per row from the photo's left and right edges, since it is a soft gradient, not pure white.
+    """
+    a = np.asarray(Image.open(path).convert("L")).astype(np.float64)
+    h, w = a.shape
+    left, right = np.median(a[:, :120], axis=1), np.median(a[:, -120:], axis=1)
+    bg = left[:, None] + (right - left)[:, None] * np.arange(w)[None, :] / (w - 1)
+    d = a - bg
+    d[np.abs(d) < 3] = 0
+    dark = np.clip(-d / np.maximum(bg, 1) * 1.8, 0, 1)
+    light = np.clip(d / np.maximum(255 - bg, 12), 0, 1)
+    alpha = np.maximum(dark, light)
+    rgb = np.where((light > dark)[..., None], 255.0, 0.0) * np.ones(3)
+
+    # Fade out everything away from the tray so background-estimate errors leave no box
+    keep = Image.new("L", (w, h), 0)
+    x0, y0, x1, y1 = TRAY_BODY
+    ImageDraw.Draw(keep).rounded_rectangle((x0 - 6, y0 - 6, x1 + 6, TRAY_CROP[3] - 4), radius=56, fill=255)
+    keep = np.asarray(keep.filter(ImageFilter.GaussianBlur(6))) / 255.0
+    layer = Image.fromarray(np.dstack([rgb, alpha * keep * 255]).round().astype(np.uint8), "RGBA")
+
+    body = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(body).rounded_rectangle(TRAY_BODY, radius=50, fill=255)
+    return layer.crop(TRAY_CROP), Image.merge("RGBA", [body] * 4).crop(TRAY_CROP)
+
+
+def nine_slice(img, scale):
+    """Cut into the 9 frame pieces Plasma stretches. Returns {name: (image, logical w, logical h)}."""
+    cw, ch = img.size
+    cap, top, bottom = TRAY_CAP, TRAY_ROWS[0] - TRAY_CROP[1], TRAY_ROWS[1] - TRAY_CROP[1]
+    xs = [0, cap, cw - cap, cw]
+    ys = [0, top, bottom, ch]
+    logical_w = [round(cap * scale), 100, round(cap * scale)]
+    rows = [round(top * scale), 0, round((ch - bottom) * scale)]
+    rows[1] = DOCK_HEIGHT - rows[0] - rows[2]
+    names = [["topleft", "top", "topright"], ["left", "center", "right"], ["bottomleft", "bottom", "bottomright"]]
+    pieces = {}
+    for r in range(3):
+        for c in range(3):
+            piece = img.crop((xs[c], ys[r], xs[c + 1], ys[r + 1]))
+            lw, lh = logical_w[c], rows[r]
+            pieces[names[r][c]] = (piece.resize((lw * 2, lh * 2), Image.LANCZOS), lw, lh)   # 2x for HiDPI
+    return pieces
+
+
+def glass_theme(path):
+    """Plasma desktop theme: glass tray dock (bottom panel) and a frosted top bar.
+
+    Only the panel background is ours; every other element falls back to Breeze.
+    """
+    tray, body = glass_layer(path)
+    scale = DOCK_HEIGHT / tray.height
+    parts = []
+
+    def image(name, img, x, y, w, h):
+        buf = io.BytesIO()
+        img.save(buf, "PNG", optimize=True)
+        data = base64.b64encode(buf.getvalue()).decode()
+        parts.append(f'<image id="{name}" x="{x}" y="{y}" width="{w}" height="{h}" preserveAspectRatio="none" '
+                     f'xlink:href="data:image/png;base64,{data}"/>')
+
+    def rect(name, x, y, w, h, fill="#000000", opacity=0.0):
+        parts.append(f'<rect id="{name}" x="{x}" y="{y}" width="{w}" height="{h}" fill="{fill}" '
+                     f'fill-opacity="{opacity}"/>')
+
+    # Elements sit on a grid of 150x120 cells; only their own sizes matter to Plasma.
+    def cell(col, row):
+        return col * 150, row * 120
+
+    # Dock: unprefixed elements, so any panel without its own prefix (the bottom one) uses them.
+    # mask-* is the area KWin blurs behind the panel: the glass body only.
+    for prefix, src, first_row in (("", tray, 0), ("mask-", body, 3)):
+        for i, (name, (img, w, h)) in enumerate(nine_slice(src, scale).items()):
+            image(prefix + name, img, *cell(i % 3, first_row + i // 3), w, h)
+    # Content margins (icon area inside the glass) and stretching instead of tiling
+    hints = [("hint-stretch-borders", 1, 1), ("hint-top-margin", 1, 14), ("hint-bottom-margin", 1, 22),
+             ("hint-left-margin", 24, 1), ("hint-right-margin", 24, 1)]
+    for i, (name, w, h) in enumerate(hints):
+        rect(name, *cell(i, 6), w, h)
+
+    # Top bar: "north-" elements, a white frosted strip with a faint line underneath
+    strip = [("topleft", 1, 1, 0), ("top", 10, 1, 0), ("topright", 1, 1, 0),
+             ("left", 1, 10, 0.55), ("center", 10, 10, 0.55), ("right", 1, 10, 0.55),
+             ("bottomleft", 1, 1, 0.08), ("bottom", 10, 1, 0.08), ("bottomright", 1, 1, 0.08)]
+    for i, (name, w, h, opacity) in enumerate(strip):
+        fill = "#ffffff" if 3 <= i < 6 else "#000000"
+        rect(f"north-{name}", *cell(i % 3, 7 + i // 3), w, h, fill, opacity)
+    hints = [("north-hint-stretch-borders", 1, 1), ("north-hint-top-margin", 1, 2),
+             ("north-hint-bottom-margin", 1, 2), ("north-hint-left-margin", 6, 1), ("north-hint-right-margin", 6, 1)]
+    for i, (name, w, h) in enumerate(hints):
+        rect(name, *cell(i, 10), w, h)
+
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
+           'width="750" height="1320" viewBox="0 0 750 1320">\n' + "\n".join(parts) + "\n</svg>\n")
+    theme = OUT / f"usr/share/plasma/desktoptheme/{THEME_ID}"
+    if theme.exists():
+        shutil.rmtree(theme)
+    for sub in ("widgets", "translucent/widgets"):     # translucent/ is what Plasma uses with compositing
+        (theme / sub).mkdir(parents=True)
+        (theme / sub / "panel-background.svg").write_text(svg, newline="\n")
+    (theme / "metadata.json").write_text(json.dumps({
+        "KPlugin": {"Id": THEME_ID, "Name": "HoussamOS Glass", "Description": "Glass dock and frosted top bar",
+                    "Authors": [{"Name": "Houssam"}], "License": "CC-BY-SA-4.0", "Version": "1.0",
+                    "Website": "https://github.com/Houssam-2021/housos"},
+        "X-Plasma-API-Minimum-Version": "6.0"
+    }, indent=4) + "\n", newline="\n")
+    (theme / "plasmarc").write_text(
+        "[BlurBehindEffect]\nenabled=true\n\n"
+        "[ContrastEffect]\nenabled=false\n\n"
+        "[AdaptiveTransparency]\nenabled=false\n", newline="\n")
+    shutil.copy(ROOT / "branding" / "colors", theme / "colors")
+    print(f"glass theme: dock {DOCK_HEIGHT}px tall, {sum(len(p) for p in parts) / 1e3:.0f} KB svg")
+    return tray, scale
+
+
+def dock_preview(tray, scale):
+    """The dock stretched for 5 and 9 apps over the wallpaper (placeholder squares for icons)."""
+    wp = Image.open(SRC / "wallpaper.png").convert("RGBA").resize((1920, 1080), Image.LANCZOS)
+    pieces = nine_slice(tray, scale)
+    rows = []
+    for n in (5, 9):
+        width = n * 52 + (n - 1) * 8 + 2 * 24
+        dock = Image.new("RGBA", (width, DOCK_HEIGHT), (0, 0, 0, 0))
+        y = 0
+        for row in (("topleft", "top", "topright"), ("left", "center", "right"),
+                    ("bottomleft", "bottom", "bottomright")):
+            lw = pieces[row[0]][1]
+            h = pieces[row[0]][2]
+            dock.alpha_composite(pieces[row[0]][0].resize((lw, h), Image.LANCZOS), (0, y))
+            dock.alpha_composite(pieces[row[1]][0].resize((width - 2 * lw, h), Image.LANCZOS), (lw, y))
+            dock.alpha_composite(pieces[row[2]][0].resize((lw, h), Image.LANCZOS), (width - lw, y))
+            y += h
+        scene = wp.copy()
+        dx, dy = (1920 - width) // 2, 1080 - DOCK_HEIGHT - 8
+        scene.alpha_composite(dock, (dx, dy))
+        draw = ImageDraw.Draw(scene)
+        for i in range(n):
+            x = dx + 24 + i * 60
+            draw.rounded_rectangle((x, dy + 14, x + 52, dy + 66), radius=12, fill=(60 + 20 * i, 140, 230 - 15 * i))
+        rows.append(scene.crop((0, 1080 - 200, 1920, 1080)))
+    sheet = Image.new("RGBA", (1920, 400))
+    sheet.paste(rows[0], (0, 0))
+    sheet.paste(rows[1], (0, 200))
+    sheet.convert("RGB").save(ROOT / "branding" / "preview-dock.jpg", quality=90)
+    print("preview: branding/preview-dock.jpg")
+
+
 def startup_sound(video):
     out = OUT / "usr/share/sounds/houssamos"
     out.mkdir(parents=True, exist_ok=True)
@@ -229,5 +390,7 @@ if __name__ == "__main__":
     logo = wordmark(SRC / "logo-wordmark.png")
     wallpaper(SRC / "wallpaper.png")
     startup_sound(SRC / "boot-animation.mp4")
+    tray, tray_scale = glass_theme(SRC / "dock-glass.jpg")
     if "--preview" in sys.argv:
         preview(icon_set, logo)
+        dock_preview(tray, tray_scale)

@@ -66,6 +66,14 @@ dnf5 remove -y libjxl-utils
 ln -sf houssamos.jxl /usr/share/backgrounds/default.jxl
 ln -sf houssamos.jxl /usr/share/backgrounds/default-dark.jxl
 
+# Glass dock and top bar: make the HoussamOS Glass Plasma theme the default. The layout itself
+# is set per user by /usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/houssamos-layout.js
+if command -v kwriteconfig6 > /dev/null; then
+    kwriteconfig6 --file /etc/xdg/plasmarc --group Theme --key name houssamos-glass
+else
+    printf '\n[Theme]\nname=houssamos-glass\n' >> /etc/xdg/plasmarc
+fi
+
 # Boot animation (the initramfs that carries it is rebuilt at the end of this script)
 dnf5 install -y plymouth-plugin-script
 plymouth_conf=/etc/plymouth/plymouthd.conf
