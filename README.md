@@ -18,6 +18,10 @@ it, run `python branding/make_branding.py --preview` (needs Pillow, numpy and ff
 regenerated files in `system_files/`. `build_files/build.sh` installs them and rebuilds the initramfs
 so the boot animation is included.
 
+The Liquid Glass icon theme comes from `branding/src/HoussamOS-LiquidGlass.zip`. To bring in a new
+version, run `python branding/import_icons.py path/to/the.zip`: it checks every icon and re-applies
+the fixes listed in the script.
+
 ## Roadmap
 
 1. Base image with HoussamOS branding

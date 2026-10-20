@@ -75,6 +75,13 @@ else
     printf '\n[Theme]\nname=houssamos-glass\n' >> /etc/xdg/plasmarc
 fi
 
+# Liquid Glass icons (imported by branding/import_icons.py; Breeze fills in anything not drawn)
+if command -v kwriteconfig6 > /dev/null; then
+    kwriteconfig6 --file /etc/xdg/kdeglobals --group Icons --key Theme HoussamOS-LiquidGlass
+else
+    printf '\n[Icons]\nTheme=HoussamOS-LiquidGlass\n' >> /etc/xdg/kdeglobals
+fi
+
 # Glass terminal: Konsole (Bazzite's KDE terminal) opens with the HoussamOS profile, light glass
 # with live blur of what is behind it, and without the menu bar and toolbars.
 # The terminal logo and welcome banner come from system_files (fastfetch config, motd template).
