@@ -27,9 +27,10 @@ set_os_release BUG_REPORT_URL "https://github.com/Houssam-2021/housos/issues"
 
 # Bazzite's own tools read the image name from here
 if [ -f /usr/share/ublue-os/image-info.json ] && command -v jq > /dev/null; then
-    jq '."image-name" = "houssamos"
+    jq --arg name "${IMAGE_NAME:-houssamos}" \
+        '."image-name" = $name
         | ."image-vendor" = "houssam-2021"
-        | ."image-ref" = "ostree-unverified-registry:ghcr.io/houssam-2021/houssamos"' \
+        | ."image-ref" = "ostree-unverified-registry:ghcr.io/houssam-2021/\($name)"' \
         /usr/share/ublue-os/image-info.json > /tmp/image-info.json
     mv /tmp/image-info.json /usr/share/ublue-os/image-info.json
 fi

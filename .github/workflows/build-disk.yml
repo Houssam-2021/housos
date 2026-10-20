@@ -29,7 +29,7 @@ on:
     branches: [main]
 
 env:
-  IMAGE_NAME: "houssamos" # keep in sync with IMAGE_NAME in image-template.env
+  IMAGE_NAME: "houssamos" # replaced per image by the matrix below
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"  # do not edit
   DEFAULT_TAG: "latest"
   BIB_IMAGE: "quay.io/centos-bootc/bootc-image-builder:latest"
@@ -40,7 +40,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build disk images
+    name: Build ${{ matrix.image }} ${{ matrix.disk-type }}
     if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     # amd64 unless arm64 is picked by hand (push-triggered runs have no inputs).
     # 24.04: the release the template's disk build was made for.
@@ -48,6 +48,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        image: ["houssamos", "houssamos-nvidia"]   # images from build.yml
         disk-type: ["anaconda-iso"]
     permissions:
       contents: read
@@ -59,7 +60,7 @@ jobs:
         run: |
           # Lowercase the image uri
           echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}" >> ${GITHUB_ENV}
-          echo "IMAGE_NAME=${IMAGE_NAME,,}" >> ${GITHUB_ENV}
+          echo "IMAGE_NAME=${{ matrix.image }}" >> ${GITHUB_ENV}
           echo "DISK_TYPE=${{ matrix.disk-type }}" >> ${GITHUB_ENV}
 
       - name: Install dependencies
@@ -87,7 +88,12 @@ jobs:
           set -euo pipefail
           IMAGE="${IMAGE_REGISTRY}/${IMAGE_NAME}:${DEFAULT_TAG}"
           CONFIG="disk_config/disk.toml"
-          if [ "${DISK_TYPE}" = "anaconda-iso" ]; then CONFIG="disk_config/iso.toml"; fi
+          if [ "${DISK_TYPE}" = "anaconda-iso" ]; then
+            # The installed system follows this image for updates
+            sed "s#ghcr.io/houssam-2021/houssamos:latest#${IMAGE}#" disk_config/iso.toml > iso-config.toml
+            grep -F "${IMAGE}" iso-config.toml
+            CONFIG="iso-config.toml"
+          fi
           mkdir -p output
 
           # Same podman storage reset the bootc-image-builder-action did on GitHub runners
@@ -141,11 +147,67 @@ jobs:
           find output -type f -exec ls -lh {} \;
           echo "output-directory=$(pwd)/output" >> "${GITHUB_OUTPUT}"
 
+      # bootc-image-builder installs Fedora's installer artwork and has no option to change it,
+      # so swap the pictures inside the ISO's installer image afterwards. If this step fails,
+      # the unbranded ISO from the step above is uploaded instead.
+      - name: Brand the installer
+        id: brand
+        if: matrix.disk-type == 'anaconda-iso'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xorriso squashfs-tools isomd5sum > /dev/null
+          ISO=$(find output -name '*.iso' | head -n 1)
+          WORK=$(mktemp -d)
+
+          xorriso -osirrox on -indev "${ISO}" -extract /images/install.img "${WORK}/install.img" 2> /dev/null
+          info=$(unsquashfs -s "${WORK}/install.img")
+          comp=$(awk '/^Compression/ { print $2 }' <<< "${info}")
+          block=$(awk '/^Block size/ { print $3 }' <<< "${info}")
+          sudo unsquashfs -q -d "${WORK}/root" "${WORK}/install.img"
+
+          # Older images keep the installer root in an ext4 file inside the squashfs
+          target="${WORK}/root"
+          if [ -f "${WORK}/root/LiveOS/rootfs.img" ]; then
+            sudo mkdir -p "${WORK}/mnt"
+            sudo mount -o loop "${WORK}/root/LiveOS/rootfs.img" "${WORK}/mnt"
+            target="${WORK}/mnt"
+          fi
+          pixmaps="${target}/usr/share/anaconda/pixmaps"
+          echo "### Installer pictures before branding" >> "${GITHUB_STEP_SUMMARY}"
+          ls "${pixmaps}" | sed 's/^/- /' >> "${GITHUB_STEP_SUMMARY}"
+          for art in disk_config/installer/*.png; do
+            sudo install -m 644 "${art}" "${pixmaps}/$(basename "${art}")"
+          done
+          if [ "${target}" != "${WORK}/root" ]; then sudo umount "${WORK}/mnt"; fi
+
+          sudo mksquashfs "${WORK}/root" "${WORK}/install.new" -comp "${comp:-xz}" -b "${block:-131072}" \
+            -noappend -no-progress -quiet
+          xorriso -indev "${ISO}" -outdev "${WORK}/branded.iso" -boot_image any replay \
+            -map "${WORK}/install.new" /images/install.img 2>&1 | tail -n 5
+          implantisomd5 --force "${WORK}/branded.iso" > /dev/null
+
+          # Check the new ISO: same volume label (the boot menu finds the installer by it) and our art inside
+          label() { xorriso -indev "$1" -pvd_info 2> /dev/null | awk -F': ' '/^Volume Id/ { print $2 }'; }
+          [ "$(label "${ISO}")" = "$(label "${WORK}/branded.iso")" ]
+          xorriso -osirrox on -indev "${WORK}/branded.iso" -extract /images/install.img "${WORK}/check.img" 2> /dev/null
+          unsquashfs -l "${WORK}/check.img" > /dev/null
+
+          mv "${WORK}/branded.iso" "${ISO}"
+          sudo rm -rf "${WORK}"
+          ls -lh "${ISO}"
+
+      - name: Report unbranded installer
+        if: steps.brand.outcome == 'failure'
+        run: echo "::warning title=Installer branding skipped::Branding the installer failed; this ISO has the default Fedora artwork. See the Brand the installer step."
+
       - name: Upload disk images to Job Artifacts
         if: inputs.upload-to-s3 != true && github.event_name != 'pull_request'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: houssamos-${{ matrix.disk-type }}
+          name: ${{ matrix.image }}-${{ matrix.disk-type }}
           path: ${{ steps.build.outputs.output-directory }}
           if-no-files-found: error
           retention-days: 14

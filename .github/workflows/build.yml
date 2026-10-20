@@ -24,10 +24,21 @@ concurrency:
 
 jobs:
   build_push:
-    name: Build and push image
+    name: Build and push ${{ matrix.image }}
     runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # AMD and Intel graphics (and virtual machines)
+          - image: houssamos
+            base: ghcr.io/ublue-os/bazzite:stable
+          # NVIDIA closed driver (GTX 900/10 series and newer) on Bazzite's LTS kernel
+          - image: houssamos-nvidia
+            base: ghcr.io/ublue-os/bazzite-nvidia:stable
     env:
       HAS_SIGNING_SECRET: ${{ secrets.SIGNING_SECRET != '' }}
+      BASE_IMAGE: ${{ matrix.base }}
 
     permissions:
       contents: read
@@ -53,9 +64,7 @@ jobs:
       - name: Image Name
         id: image-name
         run: |
-          IMAGE_NAME=$(just image_name)
-
-          echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=${{ matrix.image }}" >> $GITHUB_ENV
 
       - name: Default Tag
         id: gen-default-tag

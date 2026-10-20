@@ -355,6 +355,25 @@ def dock_preview(tray, scale):
     print("preview: branding/preview-dock.jpg")
 
 
+def installer_art(wallpaper_path, logo):
+    """Pictures for the installer (Anaconda), swapped into the ISO by build-disk.yml.
+
+    sidebar-bg: tall strip of the wallpaper's glass wave behind the left sidebar
+    sidebar-logo: the HoussamOS logo at the top of the sidebar
+    topbar-bg: wide strip used instead of the sidebar on small screens
+    """
+    out = ROOT / "disk_config" / "installer"
+    out.mkdir(parents=True, exist_ok=True)
+    wp = Image.open(wallpaper_path).convert("RGB")
+    tall = wp.resize((round(wp.width * 2160 / wp.height), 2160), Image.LANCZOS)
+    center = round(tall.width * 0.82)          # the glass wave sits on the right of the wallpaper
+    tall.crop((center - 200, 0, center + 200, 2160)).save(out / "sidebar-bg.png", optimize=True)
+    wide = wp.resize((1920, round(wp.height * 1920 / wp.width)), Image.LANCZOS)
+    wide.crop((0, 0, 1920, 64)).save(out / "topbar-bg.png", optimize=True)
+    logo.resize((170, round(logo.height * 170 / logo.width)), Image.LANCZOS).save(out / "sidebar-logo.png", optimize=True)
+    print("installer art: sidebar-bg, sidebar-logo, topbar-bg")
+
+
 def startup_sound(video):
     out = OUT / "usr/share/sounds/houssamos"
     out.mkdir(parents=True, exist_ok=True)
@@ -389,6 +408,7 @@ if __name__ == "__main__":
     icon_set = icons(SRC / "boot-animation.mp4")
     logo = wordmark(SRC / "logo-wordmark.png")
     wallpaper(SRC / "wallpaper.png")
+    installer_art(SRC / "wallpaper.png", logo)
     startup_sound(SRC / "boot-animation.mp4")
     tray, tray_scale = glass_theme(SRC / "dock-glass.jpg")
     if "--preview" in sys.argv:
