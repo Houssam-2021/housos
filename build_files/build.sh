@@ -75,6 +75,30 @@ else
     printf '\n[Theme]\nname=houssamos-glass\n' >> /etc/xdg/plasmarc
 fi
 
+# HoussamOS Global Theme: new accounts start with it (glass theme, Liquid Glass icons, HoussamOS
+# colours, white login splash). Existing accounts get it once from houssamos-user-setup at login.
+chmod 755 /usr/libexec/houssamos-user-setup
+if command -v kwriteconfig6 > /dev/null; then
+    kwriteconfig6 --file /etc/xdg/kdeglobals --group KDE --key LookAndFeelPackage org.houssamos.glass.desktop
+    kwriteconfig6 --file /etc/xdg/kdeglobals --group General --key ColorScheme HoussamOS
+    kwriteconfig6 --file /etc/xdg/ksplashrc --group KSplash --key Engine KSplashQML
+    kwriteconfig6 --file /etc/xdg/ksplashrc --group KSplash --key Theme org.houssamos.glass.desktop
+else
+    printf '\n[KDE]\nLookAndFeelPackage=org.houssamos.glass.desktop\n' >> /etc/xdg/kdeglobals
+    printf '[KSplash]\nEngine=KSplashQML\nTheme=org.houssamos.glass.desktop\n' >> /etc/xdg/ksplashrc
+fi
+
+# Bazzite's welcome app and announcement pop-ups don't start on their own
+rm -f /etc/skel/.config/autostart/bazzite-portal.desktop
+if [ -f /etc/xdg/autostart/bazzite-announcement.desktop ]; then
+    sed -i 's@^\[Desktop Entry\]@[Desktop Entry]\nHidden=true@' /etc/xdg/autostart/bazzite-announcement.desktop
+fi
+
+# Bazzite's image may carry its own /etc/hostname; new installs should be called houssamos
+if [ -f /etc/hostname ]; then
+    echo "houssamos" > /etc/hostname
+fi
+
 # Liquid Glass icons (imported by branding/import_icons.py; Breeze fills in anything not drawn)
 if command -v kwriteconfig6 > /dev/null; then
     kwriteconfig6 --file /etc/xdg/kdeglobals --group Icons --key Theme HoussamOS-LiquidGlass

@@ -1,0 +1,17 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Houssam"
+            }
+        ],
+        "Description": "HoussamOS liquid glass: glass dock and top bar, Liquid Glass icons, light colours",
+        "Id": "org.houssamos.glass.desktop",
+        "License": "CC-BY-SA-4.0",
+        "Name": "HoussamOS Glass",
+        "Version": "1.0",
+        "Website": "https://github.com/Houssam-2021/housos"
+    },
+    "X-Plasma-APIVersion": "2"
+}

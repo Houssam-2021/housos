@@ -12,22 +12,33 @@ Window.SetBackgroundTopColor(0.992, 0.992, 0.992);
 Window.SetBackgroundBottomColor(0.992, 0.992, 0.992);
 
 // Twice the size on 4K-class screens
-scale = Math.Int((Window.GetWidth() + 400) / 1920);
-if (scale < 1) scale = 1;
+fun scale_for(width)
+{
+    s = Math.Int((width + 400) / 1920);
+    if (s < 1) s = 1;
+    return s;
+}
 
-fun load_frame(index)
+fun load_frame(index, s)
 {
     image = Image("frame-" + (index + 1) + ".png");
-    if (scale > 1)
-        image = image.Scale(image.GetWidth() * scale, image.GetHeight() * scale);
+    if (s > 1)
+        image = image.Scale(image.GetWidth() * s, image.GetHeight() * s);
     return image;
 }
 
-logo_image = load_frame(0);
+// The screen size can change during boot (when the graphics driver takes over, or a VM window
+// is resized), so the logo is placed again on every refresh instead of once.
+fun place_logo()
+{
+    global.logo_sprite.SetPosition(Window.GetWidth() / 2 - global.logo_image.GetWidth() / 2,
+                                   Window.GetHeight() / 2 - global.logo_image.GetHeight() / 2, 1);
+}
+
+scale = scale_for(Window.GetWidth());
+logo_image = load_frame(0, scale);
 logo_sprite = Sprite(logo_image);
-logo_x = Window.GetWidth() / 2 - logo_image.GetWidth() / 2;
-logo_y = Window.GetHeight() / 2 - logo_image.GetHeight() / 2;
-logo_sprite.SetPosition(logo_x, logo_y, 1);
+place_logo();
 
 tick = 0;
 shown_frame = 0;
@@ -36,16 +47,23 @@ fun refresh_callback()
 {
     global.tick = global.tick + 1;
     frame = Math.Int(global.tick * fps / refresh_rate) % frame_count;
-    if (frame != global.shown_frame)
+    s = scale_for(Window.GetWidth());
+    if (frame != global.shown_frame || s != global.scale)
     {
-        global.logo_sprite.SetImage(load_frame(frame));
+        global.scale = s;
+        global.logo_image = load_frame(frame, s);
+        global.logo_sprite.SetImage(global.logo_image);
         global.shown_frame = frame;
     }
+    place_logo();
 }
 Plymouth.SetRefreshFunction(refresh_callback);
 
 // Text below the logo: disk-unlock password prompt, questions and boot messages
-text_y = logo_y + logo_image.GetHeight() + 40;
+fun text_y()
+{
+    return Window.GetHeight() / 2 + global.logo_image.GetHeight() / 2 + 40;
+}
 prompt_sprite = Sprite();
 answer_sprite = Sprite();
 message_sprite = Sprite();
@@ -67,15 +85,15 @@ fun display_password_callback(prompt, bullets)
     stars = "";
     for (i = 0; i < bullets; i++)
         stars = stars + "*";
-    place_centered(global.prompt_sprite, dark_text(prompt), global.text_y);
-    place_centered(global.answer_sprite, dark_text(stars + "_"), global.text_y + 36);
+    place_centered(global.prompt_sprite, dark_text(prompt), text_y());
+    place_centered(global.answer_sprite, dark_text(stars + "_"), text_y() + 36);
 }
 Plymouth.SetDisplayPasswordFunction(display_password_callback);
 
 fun display_question_callback(prompt, entry)
 {
-    place_centered(global.prompt_sprite, dark_text(prompt), global.text_y);
-    place_centered(global.answer_sprite, dark_text(entry + "_"), global.text_y + 36);
+    place_centered(global.prompt_sprite, dark_text(prompt), text_y());
+    place_centered(global.answer_sprite, dark_text(entry + "_"), text_y() + 36);
 }
 Plymouth.SetDisplayQuestionFunction(display_question_callback);
 

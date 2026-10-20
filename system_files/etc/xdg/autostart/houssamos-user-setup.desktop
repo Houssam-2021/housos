@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=HoussamOS setup
+Comment=Applies the HoussamOS look to accounts that do not have it yet
+Exec=/usr/libexec/houssamos-user-setup
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-phase=2

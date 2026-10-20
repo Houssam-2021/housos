@@ -374,6 +374,31 @@ def installer_art(wallpaper_path, logo):
     print("installer art: sidebar-bg, sidebar-logo, topbar-bg")
 
 
+def look_and_feel(wallpaper_path, logo):
+    """Pictures for the HoussamOS Global Theme (system_files/.../look-and-feel/org.houssamos.glass.desktop)
+    and the HoussamOS colour scheme for apps, made from branding/colors."""
+    lnf = OUT / "usr/share/plasma/look-and-feel/org.houssamos.glass.desktop/contents"
+    (lnf / "splash/images").mkdir(parents=True, exist_ok=True)
+    (lnf / "previews").mkdir(parents=True, exist_ok=True)
+    logo.save(lnf / "splash/images/houssamos.png", optimize=True)
+
+    wp = Image.open(wallpaper_path).convert("RGBA")
+    full = wp.resize((1920, round(wp.height * 1920 / wp.width)), Image.LANCZOS)
+    mark = logo.resize((560, round(logo.height * 560 / logo.width)), Image.LANCZOS)
+    full.alpha_composite(mark, ((full.width - mark.width) // 2, (full.height - mark.height) // 2))
+    full.convert("RGB").save(lnf / "previews/fullscreenpreview.jpg", quality=88)
+    full.resize((400, round(full.height * 400 / full.width)), Image.LANCZOS).save(lnf / "previews/preview.png", optimize=True)
+
+    schemes = OUT / "usr/share/color-schemes"
+    schemes.mkdir(parents=True, exist_ok=True)
+    (schemes / "HoussamOS.colors").write_text(
+        "[General]\nColorScheme=HoussamOS\nName=HoussamOS\n\n[KDE]\ncontrast=4\n\n"
+        "[WM]\nactiveBackground=227,231,238\nactiveBlend=227,231,238\nactiveForeground=32,38,50\n"
+        "inactiveBackground=239,240,241\ninactiveBlend=239,240,241\ninactiveForeground=112,125,138\n\n"
+        + (ROOT / "branding" / "colors").read_text(), newline="\n")
+    print("global theme: splash logo, previews, HoussamOS colour scheme")
+
+
 def startup_sound(video):
     out = OUT / "usr/share/sounds/houssamos"
     out.mkdir(parents=True, exist_ok=True)
@@ -409,6 +434,7 @@ if __name__ == "__main__":
     logo = wordmark(SRC / "logo-wordmark.png")
     wallpaper(SRC / "wallpaper.png")
     installer_art(SRC / "wallpaper.png", logo)
+    look_and_feel(SRC / "wallpaper.png", logo)
     startup_sound(SRC / "boot-animation.mp4")
     tray, tray_scale = glass_theme(SRC / "dock-glass.jpg")
     if "--preview" in sys.argv:
