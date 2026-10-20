@@ -75,6 +75,19 @@ else
     printf '\n[Theme]\nname=houssamos-glass\n' >> /etc/xdg/plasmarc
 fi
 
+# Glass terminal: Konsole (Bazzite's KDE terminal) opens with the HoussamOS profile, light glass
+# with live blur of what is behind it, and without the menu bar and toolbars.
+# The terminal logo and welcome banner come from system_files (fastfetch config, motd template).
+if command -v kwriteconfig6 > /dev/null; then
+    kwriteconfig6 --file /etc/xdg/konsolerc --group "Desktop Entry" --key DefaultProfile HoussamOS.profile
+    kwriteconfig6 --file /etc/xdg/konsolerc --group KonsoleWindow --key ShowMenuBarByDefault false
+    kwriteconfig6 --file /etc/xdg/konsolerc --group MainWindow --group "Toolbar mainToolBar" --key Hidden true
+    kwriteconfig6 --file /etc/xdg/konsolerc --group MainWindow --group "Toolbar sessionToolbar" --key Hidden true
+else
+    printf '\n[Desktop Entry]\nDefaultProfile=HoussamOS.profile\n\n[KonsoleWindow]\nShowMenuBarByDefault=false\n' \
+        >> /etc/xdg/konsolerc
+fi
+
 # Boot animation (the initramfs that carries it is rebuilt at the end of this script)
 dnf5 install -y plymouth-plugin-script
 plymouth_conf=/etc/plymouth/plymouthd.conf
