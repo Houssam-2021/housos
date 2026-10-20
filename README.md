@@ -11,6 +11,13 @@ A gaming-ready Linux desktop for everyday users, built on [Bazzite](https://bazz
 - `build-disk.yml` (run manually from the Actions tab) turns the image into an installable ISO.
 - Installed systems update themselves from that image and can roll back to the previous version.
 
+## Branding
+
+The source art is in `branding/src/` (boot animation video, logo, wallpaper). After replacing any of
+it, run `python branding/make_branding.py --preview` (needs Pillow, numpy and ffmpeg) and commit the
+regenerated files in `system_files/`. `build_files/build.sh` installs them and rebuilds the initramfs
+so the boot animation is included.
+
 ## Roadmap
 
 1. Base image with HoussamOS branding

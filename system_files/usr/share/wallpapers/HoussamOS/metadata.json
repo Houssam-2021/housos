@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Houssam"
+            }
+        ],
+        "Id": "HoussamOS",
+        "Name": "HoussamOS",
+        "License": "CC-BY-SA-4.0"
+    }
+}

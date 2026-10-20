@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=HoussamOS startup sound
+Comment=Plays the HoussamOS sound when the desktop starts
+Exec=pw-play --volume=0.7 /usr/share/sounds/houssamos/startup.oga
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-phase=2
