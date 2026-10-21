@@ -62,31 +62,50 @@ fi
 
 # Wallpaper: the desktop, lock screen and login screen all default to /usr/share/backgrounds/default.jxl
 dnf5 install -y libjxl-utils
-cjxl -q 95 /usr/share/wallpapers/HoussamOS/contents/images/*.png /usr/share/backgrounds/houssamos.jxl
+cjxl /usr/share/wallpapers/HoussamOS/contents/images_dark/*.jpg /usr/share/backgrounds/houssamos.jxl
+cjxl /usr/share/wallpapers/HoussamOS/contents/images/*.jpg /usr/share/backgrounds/houssamos-light.jxl
 dnf5 remove -y libjxl-utils
 ln -sf houssamos.jxl /usr/share/backgrounds/default.jxl
 ln -sf houssamos.jxl /usr/share/backgrounds/default-dark.jxl
 
-# Glass dock and top bar: make the HoussamOS Glass Plasma theme the default. The layout itself
-# is set per user by /usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/houssamos-layout.js
-if command -v kwriteconfig6 > /dev/null; then
-    kwriteconfig6 --file /etc/xdg/plasmarc --group Theme --key name houssamos-glass
-else
-    printf '\n[Theme]\nname=houssamos-glass\n' >> /etc/xdg/plasmarc
-fi
+# Design packages: Inter and JetBrains Mono fonts (Fedora); the Darkly app style and window
+# decoration, Bibata cursors and Tela icons (Terra, which Bazzite ships but keeps switched off)
+dnf5 install -y rsms-inter-fonts jetbrains-mono-fonts-all
+dnf5 install -y --enablerepo=terra darkly bibata-cursor-theme tela-icon-theme
 
-# HoussamOS Global Theme: new accounts start with it (glass theme, Liquid Glass icons, HoussamOS
-# colours, white login splash). Existing accounts get it once from houssamos-user-setup at login.
+# System-wide KDE defaults. Accounts keep their own saved choices; houssamos-user-setup brings
+# accounts created before HoussamOS up to date once.
+kset() { kwriteconfig6 --file "/etc/xdg/$1" "${@:2}"; }
+
+# HoussamOS Global Theme: glass Plasma theme (dock, top bar, menus with live blur), HoussamOS
+# Dark colours, Tela icons, Bibata cursor, Darkly style and title bars, dark login splash.
+# The panel layout is set per user by the scripts in
+# /usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/
 chmod 755 /usr/libexec/houssamos-user-setup
-if command -v kwriteconfig6 > /dev/null; then
-    kwriteconfig6 --file /etc/xdg/kdeglobals --group KDE --key LookAndFeelPackage org.houssamos.glass.desktop
-    kwriteconfig6 --file /etc/xdg/kdeglobals --group General --key ColorScheme HoussamOS
-    kwriteconfig6 --file /etc/xdg/ksplashrc --group KSplash --key Engine KSplashQML
-    kwriteconfig6 --file /etc/xdg/ksplashrc --group KSplash --key Theme org.houssamos.glass.desktop
-else
-    printf '\n[KDE]\nLookAndFeelPackage=org.houssamos.glass.desktop\n' >> /etc/xdg/kdeglobals
-    printf '[KSplash]\nEngine=KSplashQML\nTheme=org.houssamos.glass.desktop\n' >> /etc/xdg/ksplashrc
-fi
+kset kdeglobals --group KDE --key LookAndFeelPackage org.houssamos.glass.desktop
+kset kdeglobals --group KDE --key widgetStyle Darkly
+kset kdeglobals --group General --key ColorScheme HoussamOSDark
+kset kdeglobals --group Icons --key Theme Tela-blue-dark
+kset plasmarc --group Theme --key name houssamos-glass
+kset kcminputrc --group Mouse --key cursorTheme Bibata-Modern-Classic
+kset ksplashrc --group KSplash --key Engine KSplashQML
+kset ksplashrc --group KSplash --key Theme org.houssamos.glass.desktop
+kset kwinrc --group org.kde.kdecoration2 --key library org.kde.darkly
+kset kwinrc --group org.kde.kdecoration2 --key theme Darkly
+kset kwinrc --group Effect-blur --key BlurStrength 12
+kset kwinrc --group Effect-blur --key NoiseStrength 4
+kset kwinrc --group Plugins --key magiclampEnabled true
+mkdir -p /usr/share/icons/default
+printf '[Icon Theme]\nInherits=Bibata-Modern-Classic\n' > /usr/share/icons/default/index.theme
+
+# Fonts: Inter for the interface, JetBrains Mono for code and terminals
+ui_font="Inter,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"
+kset kdeglobals --group General --key font "$ui_font"
+kset kdeglobals --group General --key menuFont "$ui_font"
+kset kdeglobals --group General --key toolBarFont "$ui_font"
+kset kdeglobals --group General --key smallestReadableFont "Inter,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"
+kset kdeglobals --group General --key fixed "JetBrains Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"
+kset kdeglobals --group WM --key activeFont "Inter,10,-1,5,600,0,0,0,0,0,0,0,0,0,0,1"
 
 # Bazzite's welcome app and announcement pop-ups don't start on their own
 rm -f /etc/skel/.config/autostart/bazzite-portal.desktop
@@ -99,25 +118,15 @@ if [ -f /etc/hostname ]; then
     echo "houssamos" > /etc/hostname
 fi
 
-# Liquid Glass icons (imported by branding/import_icons.py; Breeze fills in anything not drawn)
-if command -v kwriteconfig6 > /dev/null; then
-    kwriteconfig6 --file /etc/xdg/kdeglobals --group Icons --key Theme HoussamOS-LiquidGlass
-else
-    printf '\n[Icons]\nTheme=HoussamOS-LiquidGlass\n' >> /etc/xdg/kdeglobals
-fi
+# The Liquid Glass icons (branding/import_icons.py) stay installed as an option in System Settings.
 
-# Glass terminal: Konsole (Bazzite's KDE terminal) opens with the HoussamOS profile, light glass
-# with live blur of what is behind it, and without the menu bar and toolbars.
+# Glass terminal: Konsole (Bazzite's KDE terminal) opens with the HoussamOS profile, dark glass
+# with live blur of what is behind it, JetBrains Mono, and without the menu bar and toolbars.
 # The terminal logo and welcome banner come from system_files (fastfetch config, motd template).
-if command -v kwriteconfig6 > /dev/null; then
-    kwriteconfig6 --file /etc/xdg/konsolerc --group "Desktop Entry" --key DefaultProfile HoussamOS.profile
-    kwriteconfig6 --file /etc/xdg/konsolerc --group KonsoleWindow --key ShowMenuBarByDefault false
-    kwriteconfig6 --file /etc/xdg/konsolerc --group MainWindow --group "Toolbar mainToolBar" --key Hidden true
-    kwriteconfig6 --file /etc/xdg/konsolerc --group MainWindow --group "Toolbar sessionToolbar" --key Hidden true
-else
-    printf '\n[Desktop Entry]\nDefaultProfile=HoussamOS.profile\n\n[KonsoleWindow]\nShowMenuBarByDefault=false\n' \
-        >> /etc/xdg/konsolerc
-fi
+kset konsolerc --group "Desktop Entry" --key DefaultProfile HoussamOS.profile
+kset konsolerc --group KonsoleWindow --key ShowMenuBarByDefault false
+kset konsolerc --group MainWindow --group "Toolbar mainToolBar" --key Hidden true
+kset konsolerc --group MainWindow --group "Toolbar sessionToolbar" --key Hidden true
 
 # Boot animation (the initramfs that carries it is rebuilt at the end of this script)
 dnf5 install -y plymouth-plugin-script

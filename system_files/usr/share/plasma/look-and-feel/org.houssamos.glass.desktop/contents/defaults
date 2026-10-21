@@ -1,11 +1,11 @@
 [kdeglobals][KDE]
-widgetStyle=Breeze
+widgetStyle=Darkly
 
 [kdeglobals][General]
-ColorScheme=HoussamOS
+ColorScheme=HoussamOSDark
 
 [kdeglobals][Icons]
-Theme=HoussamOS-LiquidGlass
+Theme=Tela-blue-dark
 
 [plasmarc][Theme]
 name=houssamos-glass
@@ -14,7 +14,7 @@ name=houssamos-glass
 Image=HoussamOS
 
 [kcminputrc][Mouse]
-cursorTheme=breeze_cursors
+cursorTheme=Bibata-Modern-Classic
 
 [kwinrc][WindowSwitcher]
 LayoutName=org.kde.breeze.desktop
@@ -23,5 +23,5 @@ LayoutName=org.kde.breeze.desktop
 LayoutName=org.kde.breeze.desktop
 
 [kwinrc][org.kde.kdecoration2]
-library=org.kde.breeze
-theme=Breeze
+library=org.kde.darkly
+theme=Darkly

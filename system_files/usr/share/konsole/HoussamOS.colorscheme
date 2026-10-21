@@ -1,97 +1,96 @@
 [General]
 Description=HoussamOS Glass
 Blur=true
-Opacity=0.78
+Opacity=0.8
 ColorRandomization=false
 Wallpaper=
 
 [Background]
-Color=246,248,252
+Color=12,15,24
 
 [BackgroundFaint]
-Color=246,248,252
+Color=12,15,24
 
 [BackgroundIntense]
-Color=255,255,255
+Color=20,24,36
 
 [Foreground]
-Color=32,38,50
+Color=225,230,240
 
 [ForegroundFaint]
-Color=96,104,120
+Color=150,160,180
 
 [ForegroundIntense]
-Color=10,14,22
+Color=255,255,255
 
 [Color0]
-Color=46,52,64
+Color=30,34,46
 
 [Color0Faint]
-Color=96,104,120
+Color=24,27,37
 
 [Color0Intense]
-Color=96,104,120
+Color=88,96,116
 
 [Color1]
-Color=210,60,72
+Color=255,92,122
 
 [Color1Faint]
-Color=225,120,128
+Color=180,70,92
 
 [Color1Intense]
-Color=230,86,96
+Color=255,128,150
 
 [Color2]
-Color=40,150,90
+Color=61,220,151
 
 [Color2Faint]
-Color=110,180,140
+Color=46,160,112
 
 [Color2Intense]
-Color=60,175,110
+Color=110,235,180
 
 [Color3]
-Color=196,140,0
+Color=255,196,87
 
 [Color3Faint]
-Color=210,175,90
+Color=185,142,64
 
 [Color3Intense]
-Color=220,165,20
+Color=255,214,130
 
 [Color4]
-Color=52,130,246
+Color=76,141,255
 
 [Color4Faint]
-Color=130,175,245
+Color=58,104,185
 
 [Color4Intense]
-Color=90,155,255
+Color=120,170,255
 
 [Color5]
-Color=160,90,210
+Color=160,120,255
 
 [Color5Faint]
-Color=190,150,225
+Color=118,90,185
 
 [Color5Intense]
-Color=185,120,230
+Color=190,160,255
 
 [Color6]
-Color=20,150,180
+Color=60,200,230
 
 [Color6Faint]
-Color=110,180,200
+Color=46,146,168
 
 [Color6Intense]
-Color=50,175,200
+Color=110,220,240
 
-# "White" stays mid-grey so white text is still readable on the light glass
 [Color7]
-Color=120,128,140
+Color=200,206,218
 
 [Color7Faint]
-Color=160,166,176
+Color=140,146,158
 
 [Color7Intense]
-Color=80,88,100
+Color=240,243,248

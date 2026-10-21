@@ -2,7 +2,10 @@
 enabled=true
 
 [ContrastEffect]
-enabled=false
+enabled=true
+contrast=0.25
+intensity=0.85
+saturation=1.6
 
 [AdaptiveTransparency]
 enabled=false

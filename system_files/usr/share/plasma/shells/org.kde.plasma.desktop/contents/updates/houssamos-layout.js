@@ -33,7 +33,7 @@ if (!hasTasks) {
     dock.addWidget("org.kde.plasma.icontasks");
 }
 
-dock.height = 84;              // matches DOCK_HEIGHT in branding/make_branding.py
+dock.height = 64;              // matches DOCK_HEIGHT in branding/make_theme.py
 dock.floating = true;
 dock.alignment = "center";
 dock.lengthMode = "fit";       // the glass stretches with the number of apps
@@ -42,7 +42,7 @@ dock.hiding = "none";
 if (!hasTopBar) {
     var bar = new Panel;
     bar.location = "top";
-    bar.height = 32;
+    bar.height = 30;
     bar.floating = false;
     bar.lengthMode = "fill";
 
