@@ -2,9 +2,11 @@
 """Generate the HoussamOS Glass Plasma theme and the HoussamOS colour schemes.
 
 Everything is drawn as vector shapes (no pictures), so it stays sharp at any scale:
-  - floating dock: rounded dark glass with a fine light edge
+  - floating dock: rounded frosted glass, lighter at the top, with a bright rim of light
   - top bar: slim frosted strip with a hairline underneath
-  - menus, popups, notifications, widgets and tooltips: the same glass, a little more solid
+  - menus, popups, notifications, widgets and tooltips: dark glass, a little more solid
+  - dock indicators: a soft glass tile behind the app in use or under the pointer, and a
+    small light under every running app
 Each shape also gets a mask, which is the exact area KWin blurs behind it (the live blur).
 Elements a theme does not draw fall back to Breeze, coloured by the theme's colours.
 
@@ -36,10 +38,20 @@ PALETTE = {
 
 # (radius, glass opacity, edge opacity, content margins top/bottom/left/right)
 SHAPES = {
-    "dock": (22, 0.55, 0.14, (8, 8, 10, 10)),
+    "dock": (22, 0.14, 0.24, (6, 6, 10, 10)),
     "dialog": (14, 0.72, 0.12, (12, 12, 12, 12)),
     "tooltip": (10, 0.86, 0.12, (8, 8, 10, 10)),
 }
+
+# The dock is light frosted glass rather than dark glass, so it stays visible over dark windows:
+# a pale tint, extra light at the top (glow) fading out over the top corners, and a brighter
+# rim along the top edge where light would catch it.
+DOCK_GLASS = {"tint": (236, 242, 255), "glow": 0.12, "rim": 0.55}
+
+# Dock indicators (widgets/tasks.svg): corner size, glass tile radius, and the space around icons
+TASK_CORNER = 22
+TASK_RADIUS = 12
+TASK_MARGINS = (3, 5, 4, 4)
 
 
 def rgba(colour, alpha):
@@ -50,27 +62,42 @@ class Svg:
     """Collects frame elements, each placed in its own cell so their sizes stay exact."""
 
     def __init__(self):
-        self.parts, self.row = [], 0
+        self.parts, self.defs, self.row = [], [], 0
 
-    def frame(self, prefix, radius, glass, edge, mask=False, hairline_only_bottom=False):
+    def frame(self, prefix, radius, glass, edge, mask=False, hairline_only_bottom=False,
+              tint=None, glow=0.0, rim=None):
         """The nine pieces Plasma stretches into a frame of any size.
 
         Corners are quarter circles, edges and centre are rectangles. The 1px light edge sits
         just inside the shape; for the top bar only a hairline at the bottom is drawn.
+        tint, glow and rim are for the dock: the glass colour, extra opacity at the very top that
+        fades out over the top corners, and the opacity of the top edge (the others use edge).
         """
         r, w = max(radius, 1), 10
-        g = PALETTE["glass"]
+        g = tint or PALETTE["glass"]
+        rim = edge if rim is None else rim
         fill = 'fill="#000000"' if mask else rgba(g, glass)
+        top_fill = fill
+        if glow and not mask and radius > 1:
+            gid = f"glow{self.row}"
+            colour = f"rgb({g[0]},{g[1]},{g[2]})"
+            self.defs.append(
+                f'<linearGradient id="{gid}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="{r}">'
+                f'<stop offset="0" stop-color="{colour}" stop-opacity="{glass + glow:.3f}"/>'
+                f'<stop offset="1" stop-color="{colour}" stop-opacity="{glass:.3f}"/></linearGradient>')
+            top_fill = f'fill="url(#{gid})"'
         line = 'fill="#000000" fill-opacity="0"' if mask else rgba(PALETTE["edge"], edge)
+        top_line = 'fill="#000000" fill-opacity="0"' if mask else rgba(PALETTE["edge"], rim)
         y0 = self.row * 40
         x = 0
         pieces = []
 
         def corner(name, cx, cy, sweep_path):
-            pieces.append((name, r, r, f'<path {fill} d="{sweep_path}"/>' + (
+            top = name.startswith("top")
+            pieces.append((name, r, r, f'<path {top_fill if top else fill} d="{sweep_path}"/>' + (
                 "" if mask or hairline_only_bottom or radius <= 1 else
-                f'<path fill="none" stroke="rgb(255,255,255)" stroke-opacity="{edge:.3f}" stroke-width="1" '
-                f'd="{arc_line(name, r)}"/>')))
+                f'<path fill="none" stroke="rgb(255,255,255)" stroke-opacity="{rim if top else edge:.3f}" '
+                f'stroke-width="1" d="{arc_line(name, r)}"/>')))
 
         if radius > 1:
             corner("topleft", r, r, f"M{r},{r} L0,{r} A{r},{r} 0 0 1 {r},0 Z")
@@ -84,10 +111,11 @@ class Svg:
                     body += f'<rect {line} width="1" height="1"/>'
                 pieces.append((name, 1, 1, body))
 
-        def edge_piece(name, pw, ph, line_rect):
-            body = f'<rect {fill} width="{pw}" height="{ph}"/>'
+        def edge_piece(name, pw, ph, line_rect, body_fill=fill, line_fill=line):
+            body = f'<rect {body_fill} width="{pw}" height="{ph}"/>'
             if line_rect and not mask:
-                body += f'<rect {line} x="{line_rect[0]}" y="{line_rect[1]}" width="{line_rect[2]}" height="{line_rect[3]}"/>'
+                body += (f'<rect {line_fill} x="{line_rect[0]}" y="{line_rect[1]}" '
+                         f'width="{line_rect[2]}" height="{line_rect[3]}"/>')
             pieces.append((name, pw, ph, body))
 
         if hairline_only_bottom:
@@ -96,12 +124,60 @@ class Svg:
             edge_piece("right", r, w, None)
             edge_piece("bottom", w, r, (0, r - 1, w, 1))
         else:
-            edge_piece("top", w, r, (0, 0, w, 1))
+            edge_piece("top", w, r, (0, 0, w, 1), top_fill, top_line)
             edge_piece("left", r, w, (0, 0, 1, w))
             edge_piece("right", r, w, (r - 1, 0, 1, w))
             edge_piece("bottom", w, r, (0, r - 1, w, 1))
         pieces.append(("center", w, w, f'<rect {fill} width="{w}" height="{w}"/>'))
 
+        for name, pw, ph, body in pieces:
+            self.parts.append(f'<g id="{prefix}{name}" transform="translate({x},{y0})">{body}</g>')
+            x += pw + 6
+        self.row += 2
+
+    def task_frame(self, prefix, tile=None, light=None):
+        """One dock indicator state for widgets/tasks.svg.
+
+        tile is (fill opacity, edge opacity) of the rounded glass tile behind the icon, or None.
+        light is (colour, opacity) of the small light under the icon, or None. The light sits in
+        the bottom edge piece, which Plasma stretches across the icon minus the two corners, so
+        the wide corners keep it short.
+        """
+        c, r, w = TASK_CORNER, TASK_RADIUS, 10
+        white = PALETTE["edge"]
+        clear = 'fill="#000000" fill-opacity="0"'
+        fill = rgba(white, tile[0]) if tile else clear
+        a = r - 0.5
+        shape = f"M0,{c} L0,{r} A{r},{r} 0 0 1 {r},0 L{c},0 L{c},{c} Z"
+        outline = f"M0.5,{c} L0.5,{r} A{a},{a} 0 0 1 {r},0.5 L{c},0.5"
+        pieces = []
+        # One corner drawn once, mirrored into the other three
+        for name, flip in (("topleft", ""), ("topright", f"translate({c},0) scale(-1,1)"),
+                           ("bottomleft", f"translate(0,{c}) scale(1,-1)"),
+                           ("bottomright", f"translate({c},{c}) scale(-1,-1)")):
+            body = f'<path {fill} d="{shape}"/>'
+            if tile:
+                body += (f'<path fill="none" stroke="rgb(255,255,255)" stroke-opacity="{tile[1]:.3f}" '
+                         f'stroke-width="1" d="{outline}"/>')
+            pieces.append((name, c, c, f'<g transform="{flip}">{body}</g>' if flip else body))
+
+        def side(name, pw, ph, line_rect, extra=""):
+            body = f'<rect {fill} width="{pw}" height="{ph}"/>'
+            if tile:
+                body += (f'<rect {rgba(white, tile[1])} x="{line_rect[0]}" y="{line_rect[1]}" '
+                         f'width="{line_rect[2]}" height="{line_rect[3]}"/>')
+            pieces.append((name, pw, ph, body + extra))
+
+        dot = ""
+        if light:
+            dot = f'<rect {rgba(light[0], light[1])} x="0" y="{c - 4}" width="{w}" height="2.5" rx="1.25"/>'
+        side("top", w, c, (0, 0, w, 1))
+        side("bottom", w, c, (0, c - 1, w, 1), dot)
+        side("left", c, w, (0, 0, 1, w))
+        side("right", c, w, (c - 1, 0, 1, w))
+        pieces.append(("center", w, w, f'<rect {fill} width="{w}" height="{w}"/>'))
+
+        y0, x = self.row * 40, 0
         for name, pw, ph, body in pieces:
             self.parts.append(f'<g id="{prefix}{name}" transform="translate({x},{y0})">{body}</g>')
             x += pw + 6
@@ -119,8 +195,9 @@ class Svg:
 
     def text(self):
         height = self.row * 40 + 40
+        defs = "<defs>" + "".join(self.defs) + "</defs>\n" if self.defs else ""
         return ('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="%d" viewBox="0 0 400 %d">\n' % (height, height)
-                + "\n".join(self.parts) + "\n</svg>\n")
+                + defs + "\n".join(self.parts) + "\n</svg>\n")
 
 
 def arc_line(corner, r):
@@ -136,8 +213,9 @@ def arc_line(corner, r):
 
 def frame_svg(shape, with_topbar=False):
     radius, glass, edge, margins = SHAPES[shape]
+    look = DOCK_GLASS if shape == "dock" else {}
     svg = Svg()
-    svg.frame("", radius, glass, edge)
+    svg.frame("", radius, glass, edge, **look)
     svg.frame("mask-", radius, glass, edge, mask=True)
     svg.hints("", margins)
     if with_topbar:
@@ -147,6 +225,31 @@ def frame_svg(shape, with_topbar=False):
         svg.frame("north-mask-", 1, 0.55, 0.08, mask=True, hairline_only_bottom=True)
         svg.frame("mask-north-", 1, 0.55, 0.08, mask=True, hairline_only_bottom=True)
         svg.hints("north-", (2, 2, 6, 6))
+    return svg.text()
+
+
+def tasks_svg():
+    """Dock indicators. The task manager asks for a state ("focus" is the app in use, the
+    unprefixed frame is a pinned app that isn't running) with "-hover" when the pointer is on it,
+    falling back to "hover" and then to the plain state. Every state gets the same margins so
+    icons keep their size when an app starts."""
+    white, attention = PALETTE["edge"], PALETTE["neutral"]
+    states = {
+        "": (None, None),
+        "normal-": (None, (white, 0.55)),
+        "minimized-": (None, (white, 0.30)),
+        "attention-": (None, (attention, 0.95)),
+        "focus-": ((0.12, 0.20), (white, 0.95)),
+        "hover-": ((0.08, 0.14), (white, 0.55)),
+        "launcher-hover-": ((0.08, 0.14), None),
+        "focus-hover-": ((0.16, 0.24), (white, 0.95)),
+        "minimized-hover-": ((0.08, 0.14), (white, 0.30)),
+        "attention-hover-": ((0.08, 0.14), (attention, 0.95)),
+    }
+    svg = Svg()
+    for prefix, (tile, light) in states.items():
+        svg.task_frame(prefix, tile, light)
+        svg.hints(prefix, TASK_MARGINS)
     return svg.text()
 
 
@@ -223,6 +326,7 @@ def main():
         "dialogs/background.svg": frame_svg("dialog"),
         "widgets/background.svg": frame_svg("dialog"),
         "widgets/tooltip.svg": frame_svg("tooltip"),
+        "widgets/tasks.svg": tasks_svg(),
     }
     for sub in ("", "translucent/"):     # translucent/ is what Plasma uses with compositing
         for rel, text in files.items():
@@ -231,8 +335,8 @@ def main():
             path.write_text(text, newline="\n")
     (theme / "metadata.json").write_text(json.dumps({
         "KPlugin": {"Id": THEME_ID, "Name": "HoussamOS Glass",
-                    "Description": "Dark glass with live blur: floating dock, slim top bar, glass menus",
-                    "Authors": [{"Name": "Houssam"}], "License": "CC-BY-SA-4.0", "Version": "2.0",
+                    "Description": "Glass with live blur: floating frosted dock, slim top bar, glass menus",
+                    "Authors": [{"Name": "Houssam"}], "License": "CC-BY-SA-4.0", "Version": "2.1",
                     "Website": "https://github.com/Houssam-2021/housos"},
         "X-Plasma-API-Minimum-Version": "6.0"
     }, indent=4) + "\n", newline="\n")

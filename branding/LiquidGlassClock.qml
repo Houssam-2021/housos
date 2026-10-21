@@ -1,301 +1,277 @@
-// ============================================================================
-// LiquidGlassClock.qml — KDE Plasma 6 Safe GPU-Accelerated Liquid Glass Clock
-// Drop-in replacement for KDE Lockscreen (kscreenlocker Clock.qml) & Plasmoid.
-//
-// Safety guarantees for kscreenlocker (prevents "screen locker is broken"):
-//   1. Uses only standard Qt 6 core modules (QtQuick, QtQuick.Layouts, QtQuick.Effects)
-//      shipped in qt6-qtdeclarative on Fedora/Bazzite.
-//   2. Root item is ColumnLayout with softwareRendering, Layout.alignment and
-//      implicit sizes matching upstream Plasma 6 Clock.qml.
-//   3. Never binds ShaderEffectSource to an ancestor Item (which causes a Qt6
-//      scene-graph parent-child cycle); translucent frosted glass + 3D tubular
-//      specular bevels composite directly over the lockscreen wallpaper.
-// ============================================================================
+/*
+    HoussamOS lock screen clock: the date over large liquid glass digits. The digits are a real
+    font (Inter Display, semibold) that act like glass: the wallpaper shows through them blurred,
+    slightly magnified like a lens and more vivid, with a gloss at the top, a bright rim of light
+    along the top-left edges, a softer one along the bottom-right, and a soft shadow.
+
+    build_files/build.sh installs this file next to KDE's LockScreenUi.qml and makes its Clock use
+    it. LockScreenUi also draws a drop-shadowed copy of the clock (clockShadow, given to the clock
+    as "shadow"); this clock hides that copy, because a second layer would make the glass solid.
+    The wallpaper comes from LockScreenUi's WallpaperFader (a sibling with mainStack and source);
+    if it isn't found the digits are frosted white instead. Without a GPU (software rendering) the
+    effects can't run, so plain digits are shown.
+*/
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
+import QtQuick.Window
 
 ColumnLayout {
     id: root
-    spacing: 0
-    Layout.alignment: Qt.AlignHCenter
-    Layout.preferredWidth: 580
-    Layout.preferredHeight: 230
-    implicitWidth: 580
-    implicitHeight: 230
 
-    // Required by LockScreenUi.qml / upstream Clock.qml
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
+    readonly property bool use24Hour: Qt.locale().timeFormat(Locale.ShortFormat).toLowerCase().indexOf("a") === -1
+    readonly property int digitSize: Math.round(Math.max(100, Math.min(190, Screen.height * 0.16)))
+    property date now: new Date()
 
-    // Follow the system locale's 12/24-hour preference
-    property bool use24Hour: Qt.locale().timeFormat(Locale.ShortFormat).toLowerCase().indexOf("ap") === -1
-    property string timeString: "3:23"
-    property string dateString: "Wednesday, October 21"
-    property real tubeWidth: 25
+    // 12-hour clocks show no AM/PM, as on phones
+    readonly property string timeText: use24Hour
+        ? Qt.formatTime(now, Qt.locale(), Locale.ShortFormat)
+        : ((now.getHours() % 12) || 12) + ":" + String(now.getMinutes()).padStart(2, "0")
+    readonly property string dateText: Qt.formatDate(now, Qt.locale(), Locale.LongFormat)
 
-    // Scale smoothly on shorter screens (such as 800x600 --testing or small VM windows)
-    // so the ultra-tall digits never overlap the user avatar below the clock.
-    readonly property real clockScale: parent && parent.height > 0
-        ? Math.min(0.78, Math.max(0.50, parent.height / 1200))
-        : 0.68
+    // The wallpaper item, and where the digits sit over it
+    property Item backdrop: null
+    property rect behindRect: Qt.rect(0, 0, 1, 1)
+    // How much white frost covers the glass: less when the wallpaper shows through
+    readonly property real frost: backdrop ? 0.45 : 1.0
 
-    function updateClock() {
-        const now = new Date()
-        let h = now.getHours()
-        if (!root.use24Hour) {
-            h = h % 12
-            if (h === 0) h = 12
+    function updateBehind() {
+        if (backdrop && digits.width > 0) {
+            const at = digits.mapToItem(backdrop, 0, 0);
+            behindRect = Qt.rect(at.x, at.y, digits.width, digits.height);
         }
-        const m = String(now.getMinutes()).padStart(2, "0")
-        const nextTime = h + ":" + m
-        if (root.timeString !== nextTime) {
-            root.timeString = nextTime
-            if (maskCanvas.available) maskCanvas.requestPaint()
-            if (bevelCanvas.available) bevelCanvas.requestPaint()
-        }
-        root.dateString = Qt.formatDate(now, Locale.LongFormat)
     }
 
-    Component.onCompleted: updateClock()
+    spacing: 0
+    onXChanged: updateBehind()
+    onYChanged: updateBehind()
+
+    Component.onCompleted: {
+        if (root.shadow) {
+            root.shadow.visible = false;
+        }
+        const siblings = root.parent ? root.parent.children : [];
+        for (let i = 0; i < siblings.length; i++) {
+            if (siblings[i] !== root && siblings[i].mainStack !== undefined && siblings[i].source) {
+                root.backdrop = siblings[i].source;
+                break;
+            }
+        }
+        updateBehind();
+    }
 
     Timer {
         interval: 1000
         running: true
         repeat: true
-        triggeredOnStart: true
-        onTriggered: root.updateClock()
+        onTriggered: {
+            root.now = new Date();
+            root.updateBehind();
+        }
+    }
+
+    component Glyphs: Text {
+        text: root.timeText
+        font.family: "Inter Display"
+        font.pixelSize: root.digitSize
+        font.weight: Font.DemiBold
+        font.letterSpacing: -root.digitSize * 0.02
+        font.features: { "tnum": 1 }
+    }
+
+    Text {
+        Layout.alignment: Qt.AlignHCenter
+        text: root.dateText
+        color: "#F2FFFFFF"
+        font.family: "Inter"
+        font.pixelSize: Math.round(root.digitSize * 0.18)
+        font.weight: Font.Medium
+        style: Text.Raised
+        styleColor: "#59000000"
     }
 
     Item {
+        id: digits
+
+        // Room around the digits for the shadow; the negative layout margins take most of it
+        // back, so the clock stays compact
+        readonly property int pad: Math.round(root.digitSize * 0.14)
+        readonly property real rim: Math.max(1.5, root.digitSize * 0.014)
+
         Layout.alignment: Qt.AlignHCenter
-        Layout.preferredWidth: 580
-        Layout.preferredHeight: Math.round(390 * root.clockScale)
-        implicitWidth: 580
-        implicitHeight: Math.round(390 * root.clockScale)
+        Layout.topMargin: -Math.round(root.digitSize * 0.26)
+        Layout.bottomMargin: -Math.round(root.digitSize * 0.30)
+        implicitWidth: glyphs.implicitWidth + pad * 2
+        implicitHeight: glyphs.implicitHeight + pad * 2
 
-        Column {
-            anchors.centerIn: parent
-            width: 580
-            height: 390
-            spacing: 0
-            scale: root.clockScale
-            transformOrigin: Item.Center
+        Glyphs {
+            visible: root.softwareRendering
+            x: digits.pad
+            y: digits.pad
+            color: "#EBFFFFFF"
+            style: Text.Outline
+            styleColor: "#4D000000"
+        }
 
-            // Subtle Date Label Above the Ultra-Tall Digits
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: root.dateString
-                color: "#E8FFFFFF"
-                font.family: "Inter"
-                font.pixelSize: 20
-                font.weight: Font.DemiBold
-                font.letterSpacing: 0.6
-                style: root.softwareRendering ? Text.Outline : Text.Raised
-                styleColor: "#66000000"
-            }
+        Item {
+            anchors.fill: parent
+            visible: !root.softwareRendering
 
-            // Main Clock Stage (580 px wide so 4-digit times like 10:23 or 23:59 never clip)
+            // The digit shapes, used as masks and never shown themselves. The two shifted copies
+            // mark the edges: what the down-right copy doesn't cover is the top-left edge.
             Item {
-                id: clockStage
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: 580
-                height: 360
+                id: shape
+                anchors.fill: parent
+                visible: false
+                layer.enabled: true
+                Glyphs { id: glyphs; x: digits.pad; y: digits.pad; color: "white" }
+            }
+            Item {
+                id: shapeDownRight
+                anchors.fill: parent
+                visible: false
+                layer.enabled: true
+                Glyphs { x: digits.pad + digits.rim; y: digits.pad + digits.rim; color: "white" }
+            }
+            Item {
+                id: shapeUpLeft
+                anchors.fill: parent
+                visible: false
+                layer.enabled: true
+                Glyphs { x: digits.pad - digits.rim; y: digits.pad - digits.rim; color: "white" }
+            }
 
-                // -----------------------------------------------------------------
-                // PASS 1: Ultra-Tall Condensed Numeral Alpha Mask (for soft shadow)
-                // -----------------------------------------------------------------
-                Canvas {
-                    id: maskCanvas
-                    anchors.fill: parent
-                    layer.enabled: true
-                    visible: false
-                    onAvailableChanged: if (available) requestPaint()
-                    onPaint: {
-                        const ctx = getContext("2d")
-                        ctx.reset()
-                        root.drawTimeGeometry(ctx, root.timeString, "#ffffff", root.tubeWidth, 0, 0)
-                    }
-                }
+            // Soft shadow under the glass
+            MultiEffect {
+                anchors.fill: parent
+                transform: Translate { y: Math.round(root.digitSize * 0.02) }
+                source: shape
+                colorization: 1.0
+                colorizationColor: "#000614"
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blurMax: 24
+                blur: 0.5
+                opacity: 0.22
+            }
 
-                // Soft Drop Shadow Behind Glass Tubes
-                MultiEffect {
-                    anchors.fill: parent
-                    source: maskCanvas
-                    visible: !root.softwareRendering
-                    shadowEnabled: true
-                    shadowColor: "#70050814"
-                    shadowBlur: 0.75
-                    shadowVerticalOffset: 10
-                    shadowHorizontalOffset: 0
-                    opacity: 0.55
-                }
+            // The wallpaper seen through the glass: a slightly smaller area stretched over the
+            // digits, so it is magnified like a lens, then blurred and made more vivid
+            ShaderEffectSource {
+                id: behind
+                anchors.fill: parent
+                visible: false
+                sourceItem: root.backdrop
+                sourceRect: Qt.rect(root.behindRect.x + root.behindRect.width * 0.04,
+                                    root.behindRect.y + root.behindRect.height * 0.04,
+                                    root.behindRect.width * 0.92, root.behindRect.height * 0.92)
+            }
+            MultiEffect {
+                anchors.fill: parent
+                visible: root.backdrop !== null
+                source: behind
+                // Padding would stretch the mask over a bigger area than the digits
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blurMax: 32
+                blur: 0.5
+                brightness: 0.12
+                saturation: 0.45
+                maskEnabled: true
+                maskSource: shape
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1.0
+            }
 
-                // Soft Inner/Ambient Frosted Glow Behind the Tubes
-                MultiEffect {
-                    anchors.fill: parent
-                    source: maskCanvas
-                    visible: !root.softwareRendering
-                    blurEnabled: true
-                    blurMax: 28
-                    blur: 0.55
-                    opacity: 0.22
-                }
-
-                // -----------------------------------------------------------------
-                // PASS 2: Milky Glass Sheen + 3D Tubular Specular Bevel Rim
-                // -----------------------------------------------------------------
-                Canvas {
-                    id: bevelCanvas
-                    anchors.fill: parent
-                    layer.enabled: true
-                    onAvailableChanged: if (available) requestPaint()
-                    onPaint: {
-                        const ctx = getContext("2d")
-                        ctx.reset()
-
-                        // 1. Clip all optical bevel passes strictly inside the numeral strokes
-                        root.drawTimeGeometry(ctx, root.timeString, "#ffffff", root.tubeWidth, 0, 0)
-                        ctx.globalCompositeOperation = "source-in"
-
-                        // 2. Milky Vertical Glass Gradient (Clearer at top, glossy frost in lower-middle)
-                        const sheen = ctx.createLinearGradient(0, 20, 0, 340)
-                        sheen.addColorStop(0.00, "rgba(210, 228, 255, 0.24)")
-                        sheen.addColorStop(0.32, "rgba(235, 244, 255, 0.30)")
-                        sheen.addColorStop(0.58, "rgba(255, 255, 255, 0.54)")
-                        sheen.addColorStop(0.82, "rgba(240, 246, 255, 0.38)")
-                        sheen.addColorStop(1.00, "rgba(255, 255, 255, 0.60)")
-                        ctx.fillStyle = sheen
-                        ctx.fillRect(0, 0, width, height)
-
-                        // 3. Outer Dark/Warm Refractive Edge Ring (Physical glass thickness)
-                        ctx.globalCompositeOperation = "source-atop"
-                        root.drawTimeGeometry(ctx, root.timeString, "rgba(18, 24, 38, 0.42)", root.tubeWidth + 2, 1.5, 2.0)
-
-                        // 4. Top-Left 3D Curved Specular Highlight Band
-                        root.drawTimeGeometry(ctx, root.timeString, "rgba(255, 255, 255, 0.94)", root.tubeWidth - 4, -2.2, -2.2)
-
-                        // 5. Core Glass Transparency Cutout (Leaves the specular rim on the edges)
-                        ctx.globalCompositeOperation = "destination-out"
-                        root.drawTimeGeometry(ctx, root.timeString, "rgba(0, 0, 0, 0.58)", root.tubeWidth - 8, 0.8, 0.8)
-
-                        // 6. Crisp 1.5px Specular Rim Highlight Along the Tube Contour
-                        ctx.globalCompositeOperation = "source-over"
-                        root.drawTimeGeometry(ctx, root.timeString, "rgba(255, 255, 255, 0.62)", root.tubeWidth - 1.5, -0.5, -0.5)
-                    }
+            // Frost and gloss: brighter at the top of the digits, a faint gloss line across the
+            // middle, and a little light caught again at the bottom. The digits fill roughly the
+            // middle half of this item (between the cap height and the baseline).
+            Rectangle {
+                id: frostFill
+                anchors.fill: parent
+                visible: false
+                layer.enabled: true
+                gradient: Gradient {
+                    GradientStop { position: 0.25; color: Qt.rgba(0.94, 0.96, 1.0, 0.58 * root.frost) }
+                    GradientStop { position: 0.42; color: Qt.rgba(0.94, 0.96, 1.0, 0.32 * root.frost) }
+                    GradientStop { position: 0.50; color: Qt.rgba(0.94, 0.96, 1.0, 0.18 * root.frost) }
+                    GradientStop { position: 0.51; color: Qt.rgba(0.94, 0.96, 1.0, 0.11 * root.frost) }
+                    GradientStop { position: 0.75; color: Qt.rgba(0.94, 0.96, 1.0, 0.28 * root.frost) }
                 }
             }
-        }
-    }
-
-    // Ultra-Tall Condensed Numeral Renderer (Matches the 3:23 iOS 26 / Tahoe Geometry)
-    function drawTimeGeometry(ctx, str, color, sw, ox, oy) {
-        const chars = str.split("")
-        const widths = []
-        for (let k = 0; k < chars.length; k++) {
-            widths.push(chars[k] === ":" ? 44 : 112)
-        }
-        const spacing = 14
-        let totalW = (chars.length - 1) * spacing
-        for (let k = 0; k < widths.length; k++) totalW += widths[k]
-        let curX = (clockStage.width - totalW) / 2 + ox
-
-        ctx.save()
-        ctx.strokeStyle = color
-        ctx.fillStyle = color
-        ctx.lineWidth = sw
-        ctx.lineCap = "butt"
-        ctx.lineJoin = "round"
-
-        for (let i = 0; i < chars.length; i++) {
-            const ch = chars[i]
-            ctx.save()
-            ctx.translate(curX, oy)
-            ctx.beginPath()
-
-            if (ch === ":") {
-                const r = sw * 0.56
-                ctx.arc(22, 112, r, 0, Math.PI * 2)
-                ctx.fill()
-                ctx.beginPath()
-                ctx.arc(22, 248, r, 0, Math.PI * 2)
-                ctx.fill()
-            } else {
-                switch (ch) {
-                case "0":
-                    ctx.arc(55, 68, 39, Math.PI, 0, false)
-                    ctx.lineTo(94, 292)
-                    ctx.arc(55, 292, 39, 0, Math.PI, false)
-                    ctx.closePath()
-                    break
-                case "1":
-                    ctx.moveTo(28, 68); ctx.lineTo(62, 32); ctx.lineTo(62, 332)
-                    break
-                case "2":
-                    ctx.moveTo(16, 108); ctx.lineTo(16, 68)
-                    ctx.arc(55, 68, 39, Math.PI, 0.15 * Math.PI, false)
-                    ctx.lineTo(16, 320); ctx.lineTo(16, 332); ctx.lineTo(98, 332)
-                    break
-                case "3":
-                    ctx.moveTo(16, 108); ctx.lineTo(16, 68)
-                    ctx.arc(55, 68, 39, Math.PI, 0, false)
-                    ctx.lineTo(94, 134)
-                    ctx.arc(55, 134, 39, 0, 0.5 * Math.PI, false)
-                    ctx.moveTo(55, 173)
-                    ctx.arc(55, 212, 39, -0.5 * Math.PI, 0, false)
-                    ctx.lineTo(94, 292)
-                    ctx.arc(55, 292, 39, 0, Math.PI, false)
-                    ctx.lineTo(16, 248)
-                    break
-                case "4":
-                    ctx.moveTo(80, 332); ctx.lineTo(80, 28)
-                    ctx.lineTo(14, 236); ctx.lineTo(14, 248); ctx.lineTo(102, 248)
-                    break
-                case "5":
-                    ctx.moveTo(92, 32); ctx.lineTo(18, 32); ctx.lineTo(18, 168)
-                    ctx.arc(55, 190, 39, -0.75 * Math.PI, 0, false)
-                    ctx.lineTo(94, 292)
-                    ctx.arc(55, 292, 39, 0, Math.PI, false)
-                    ctx.lineTo(16, 252)
-                    break
-                case "6":
-                    ctx.moveTo(94, 104); ctx.lineTo(94, 68)
-                    ctx.arc(55, 68, 39, 0, Math.PI, true)
-                    ctx.lineTo(16, 292)
-                    ctx.arc(55, 292, 39, Math.PI, 0, true)
-                    ctx.lineTo(94, 212)
-                    ctx.arc(55, 212, 39, 0, Math.PI, true)
-                    break
-                case "7":
-                    ctx.moveTo(14, 44); ctx.lineTo(14, 32); ctx.lineTo(94, 32)
-                    ctx.lineTo(94, 46); ctx.lineTo(34, 332)
-                    break
-                case "8":
-                    ctx.arc(55, 68, 39, Math.PI, 0, false)
-                    ctx.lineTo(94, 132)
-                    ctx.arc(55, 132, 39, 0, Math.PI, false)
-                    ctx.closePath()
-                    ctx.stroke()
-                    ctx.beginPath()
-                    ctx.arc(55, 210, 39, Math.PI, 0, false)
-                    ctx.lineTo(94, 292)
-                    ctx.arc(55, 292, 39, 0, Math.PI, false)
-                    ctx.closePath()
-                    break
-                case "9":
-                    ctx.moveTo(94, 148)
-                    ctx.arc(55, 148, 39, 0, Math.PI, false)
-                    ctx.lineTo(16, 68)
-                    ctx.arc(55, 68, 39, Math.PI, 0, false)
-                    ctx.lineTo(94, 292)
-                    ctx.arc(55, 292, 39, 0, Math.PI, false)
-                    ctx.lineTo(16, 256)
-                    break
-                }
-                ctx.stroke()
+            MultiEffect {
+                anchors.fill: parent
+                source: frostFill
+                maskEnabled: true
+                maskSource: shape
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1.0
             }
-            ctx.restore()
-            curX += widths[i] + spacing
+
+            // Bright rim along the top-left edges
+            Rectangle {
+                id: lightRim
+                anchors.fill: parent
+                visible: false
+                layer.enabled: true
+                color: Qt.rgba(1, 1, 1, 0.95)
+            }
+            Item {
+                id: topLeftEdge
+                anchors.fill: parent
+                visible: false
+                layer.enabled: true
+                MultiEffect {
+                    anchors.fill: parent
+                    source: lightRim
+                    maskEnabled: true
+                    maskInverted: true
+                    maskSource: shapeDownRight
+                    maskThresholdMin: 0.5
+                    maskSpreadAtMin: 1.0
+                }
+            }
+            MultiEffect {
+                anchors.fill: parent
+                source: topLeftEdge
+                maskEnabled: true
+                maskSource: shape
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1.0
+            }
+
+            // Softer rim along the bottom-right edges
+            Rectangle {
+                id: softRim
+                anchors.fill: parent
+                visible: false
+                layer.enabled: true
+                color: Qt.rgba(1, 1, 1, 0.38)
+            }
+            Item {
+                id: bottomRightEdge
+                anchors.fill: parent
+                visible: false
+                layer.enabled: true
+                MultiEffect {
+                    anchors.fill: parent
+                    source: softRim
+                    maskEnabled: true
+                    maskInverted: true
+                    maskSource: shapeUpLeft
+                    maskThresholdMin: 0.5
+                    maskSpreadAtMin: 1.0
+                }
+            }
+            MultiEffect {
+                anchors.fill: parent
+                source: bottomRightEdge
+                maskEnabled: true
+                maskSource: shape
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1.0
+            }
         }
-        ctx.restore()
     }
 }

@@ -1,13 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="400" height="520" viewBox="0 0 400 520">
-<g id="topleft" transform="translate(0,0)"><path fill="rgb(18,22,36)" fill-opacity="0.550" d="M22,22 L0,22 A22,22 0 0 1 22,0 Z"/><path fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.140" stroke-width="1" d="M0.5,22 A21.5,21.5 0 0 1 22,0.5"/></g>
-<g id="topright" transform="translate(28,0)"><path fill="rgb(18,22,36)" fill-opacity="0.550" d="M0,22 L0,0 A22,22 0 0 1 22,22 Z"/><path fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.140" stroke-width="1" d="M0,0.5 A21.5,21.5 0 0 1 21.5,22"/></g>
-<g id="bottomleft" transform="translate(56,0)"><path fill="rgb(18,22,36)" fill-opacity="0.550" d="M22,0 L22,22 A22,22 0 0 1 0,0 Z"/><path fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.140" stroke-width="1" d="M22,21.5 A21.5,21.5 0 0 1 0.5,0"/></g>
-<g id="bottomright" transform="translate(84,0)"><path fill="rgb(18,22,36)" fill-opacity="0.550" d="M0,0 L22,0 A22,22 0 0 1 0,22 Z"/><path fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.140" stroke-width="1" d="M21.5,0 A21.5,21.5 0 0 1 0,21.5"/></g>
-<g id="top" transform="translate(112,0)"><rect fill="rgb(18,22,36)" fill-opacity="0.550" width="10" height="22"/><rect fill="rgb(255,255,255)" fill-opacity="0.140" x="0" y="0" width="10" height="1"/></g>
-<g id="left" transform="translate(128,0)"><rect fill="rgb(18,22,36)" fill-opacity="0.550" width="22" height="10"/><rect fill="rgb(255,255,255)" fill-opacity="0.140" x="0" y="0" width="1" height="10"/></g>
-<g id="right" transform="translate(156,0)"><rect fill="rgb(18,22,36)" fill-opacity="0.550" width="22" height="10"/><rect fill="rgb(255,255,255)" fill-opacity="0.140" x="21" y="0" width="1" height="10"/></g>
-<g id="bottom" transform="translate(184,0)"><rect fill="rgb(18,22,36)" fill-opacity="0.550" width="10" height="22"/><rect fill="rgb(255,255,255)" fill-opacity="0.140" x="0" y="21" width="10" height="1"/></g>
-<g id="center" transform="translate(200,0)"><rect fill="rgb(18,22,36)" fill-opacity="0.550" width="10" height="10"/></g>
+<defs><linearGradient id="glow0" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="22"><stop offset="0" stop-color="rgb(236,242,255)" stop-opacity="0.220"/><stop offset="1" stop-color="rgb(236,242,255)" stop-opacity="0.120"/></linearGradient></defs>
+<g id="topleft" transform="translate(0,0)"><path fill="url(#glow0)" d="M22,22 L0,22 A22,22 0 0 1 22,0 Z"/><path fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.450" stroke-width="1" d="M0.5,22 A21.5,21.5 0 0 1 22,0.5"/></g>
+<g id="topright" transform="translate(28,0)"><path fill="url(#glow0)" d="M0,22 L0,0 A22,22 0 0 1 22,22 Z"/><path fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.450" stroke-width="1" d="M0,0.5 A21.5,21.5 0 0 1 21.5,22"/></g>
+<g id="bottomleft" transform="translate(56,0)"><path fill="rgb(236,242,255)" fill-opacity="0.120" d="M22,0 L22,22 A22,22 0 0 1 0,0 Z"/><path fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.200" stroke-width="1" d="M22,21.5 A21.5,21.5 0 0 1 0.5,0"/></g>
+<g id="bottomright" transform="translate(84,0)"><path fill="rgb(236,242,255)" fill-opacity="0.120" d="M0,0 L22,0 A22,22 0 0 1 0,22 Z"/><path fill="none" stroke="rgb(255,255,255)" stroke-opacity="0.200" stroke-width="1" d="M21.5,0 A21.5,21.5 0 0 1 0,21.5"/></g>
+<g id="top" transform="translate(112,0)"><rect fill="url(#glow0)" width="10" height="22"/><rect fill="rgb(255,255,255)" fill-opacity="0.450" x="0" y="0" width="10" height="1"/></g>
+<g id="left" transform="translate(128,0)"><rect fill="rgb(236,242,255)" fill-opacity="0.120" width="22" height="10"/><rect fill="rgb(255,255,255)" fill-opacity="0.200" x="0" y="0" width="1" height="10"/></g>
+<g id="right" transform="translate(156,0)"><rect fill="rgb(236,242,255)" fill-opacity="0.120" width="22" height="10"/><rect fill="rgb(255,255,255)" fill-opacity="0.200" x="21" y="0" width="1" height="10"/></g>
+<g id="bottom" transform="translate(184,0)"><rect fill="rgb(236,242,255)" fill-opacity="0.120" width="10" height="22"/><rect fill="rgb(255,255,255)" fill-opacity="0.200" x="0" y="21" width="10" height="1"/></g>
+<g id="center" transform="translate(200,0)"><rect fill="rgb(236,242,255)" fill-opacity="0.120" width="10" height="10"/></g>
 <g id="mask-topleft" transform="translate(0,80)"><path fill="#000000" d="M22,22 L0,22 A22,22 0 0 1 22,0 Z"/></g>
 <g id="mask-topright" transform="translate(28,80)"><path fill="#000000" d="M0,22 L0,0 A22,22 0 0 1 22,22 Z"/></g>
 <g id="mask-bottomleft" transform="translate(56,80)"><path fill="#000000" d="M22,0 L22,22 A22,22 0 0 1 0,0 Z"/></g>
@@ -18,8 +19,8 @@
 <g id="mask-bottom" transform="translate(184,80)"><rect fill="#000000" width="10" height="22"/></g>
 <g id="mask-center" transform="translate(200,80)"><rect fill="#000000" width="10" height="10"/></g>
 <rect id="hint-stretch-borders" x="0" y="160" width="1" height="1" fill="#000000" fill-opacity="0"/>
-<rect id="hint-top-margin" x="30" y="160" width="1" height="8" fill="#000000" fill-opacity="0"/>
-<rect id="hint-bottom-margin" x="60" y="160" width="1" height="8" fill="#000000" fill-opacity="0"/>
+<rect id="hint-top-margin" x="30" y="160" width="1" height="6" fill="#000000" fill-opacity="0"/>
+<rect id="hint-bottom-margin" x="60" y="160" width="1" height="6" fill="#000000" fill-opacity="0"/>
 <rect id="hint-left-margin" x="90" y="160" width="10" height="1" fill="#000000" fill-opacity="0"/>
 <rect id="hint-right-margin" x="120" y="160" width="10" height="1" fill="#000000" fill-opacity="0"/>
 <g id="north-topleft" transform="translate(0,200)"><rect fill="rgb(18,22,36)" fill-opacity="0.550" width="1" height="1"/></g>

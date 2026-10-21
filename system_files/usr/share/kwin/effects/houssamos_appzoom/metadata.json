@@ -1,0 +1,19 @@
+{
+    "KPackageStructure": "KWin/Effect",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Houssam"
+            }
+        ],
+        "Category": "Window Open/Close Animation",
+        "Description": "Windows zoom out of their dock icon when they open, and back into it when they close or minimize",
+        "EnabledByDefault": true,
+        "Id": "houssamos_appzoom",
+        "License": "GPL",
+        "Name": "HoussamOS App Zoom"
+    },
+    "X-KDE-Ordering": 60,
+    "X-KWin-Exclusive-Category": "toplevel-open-close-animation",
+    "X-Plasma-API": "javascript"
+}

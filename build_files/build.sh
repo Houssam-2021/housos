@@ -30,7 +30,8 @@ if [ -f /usr/share/ublue-os/image-info.json ] && command -v jq > /dev/null; then
     jq --arg name "${IMAGE_NAME:-houssamos}" \
         '."image-name" = $name
         | ."image-vendor" = "houssam-2021"
-        | ."image-ref" = "ostree-unverified-registry:ghcr.io/houssam-2021/\($name)"' \
+        | ."image-ref" = "ostree-unverified-registry:ghcr.io/houssam-2021/\($name)"
+        | ."image-tag" = "latest"' \
         /usr/share/ublue-os/image-info.json > /tmp/image-info.json
     mv /tmp/image-info.json /usr/share/ublue-os/image-info.json
 fi
@@ -54,6 +55,55 @@ find /usr/share/icons /usr/share/pixmaps -type f \
             ;;
     esac
 done
+
+# Liquid Glass icons (branding/make_icons.py): their glass and glow are SVG filters, which KDE's
+# icon renderer (Qt SVG) cannot draw, so it shows grey boxes and hard blobs instead. librsvg can,
+# so each icon is rendered to PNG in the sizes KDE asks for (and at double size for HiDPI
+# screens), and only the PNGs are shipped.
+lg=/usr/share/icons/HoussamOS-LiquidGlass
+rsvg_added=false
+if ! command -v rsvg-convert > /dev/null; then
+    dnf5 install -y librsvg2-tools
+    rsvg_added=true
+fi
+svg_count=$(find "$lg/scalable" -name '*.svg' | wc -l)
+for svg in "$lg"/scalable/*/*.svg; do
+    context=$(basename "$(dirname "$svg")")
+    name=$(basename "$svg" .svg)
+    for size in 16 22 24 32 48 64 96 128 256; do
+        for scale in 1 2; do
+            case "$scale" in 2) suffix="@2x" ;; *) suffix="" ;; esac
+            if [ "$scale" = 2 ] && [ "$size" = 256 ]; then
+                continue
+            fi
+            mkdir -p "$lg/${size}x${size}${suffix}/$context"
+            rsvg-convert -w $((size * scale)) -h $((size * scale)) "$svg" \
+                -o "$lg/${size}x${size}${suffix}/$context/$name.png"
+        done
+    done
+done
+if $rsvg_added; then
+    dnf5 remove -y librsvg2-tools
+fi
+rm -rf "$lg/scalable"
+theme_dirs=$(cd "$lg" && find . -mindepth 2 -maxdepth 2 -type d | sed 's|^\./||' | sort -V)
+{
+    echo "[Icon Theme]"
+    grep -E '^(Name|Comment|Inherits|Example)=' "$lg/index.theme"
+    echo "Directories=$(echo $theme_dirs | tr ' ' ',')"
+    for dir in $theme_dirs; do
+        case "$dir" in *@2x/*) scale=2 ;; *) scale=1 ;; esac
+        case "${dir#*/}" in apps) context=Applications ;; places) context=Places ;; *) context=Other ;; esac
+        printf '\n[%s]\nSize=%s\nScale=%s\nContext=%s\nType=Fixed\n' "$dir" "${dir%%x*}" "$scale" "$context"
+    done
+} > /tmp/index.theme
+mv /tmp/index.theme "$lg/index.theme"
+png_count=$(find "$lg" -name '*.png' | wc -l)
+if [ "$svg_count" -eq 0 ] || [ "$png_count" -ne $((svg_count * 17)) ]; then
+    echo "Liquid Glass icons: expected $((svg_count * 17)) PNGs from $svg_count SVGs, got $png_count"
+    exit 1
+fi
+
 if command -v gtk-update-icon-cache > /dev/null; then
     for theme in /usr/share/icons/*/; do
         [ -f "${theme}index.theme" ] && gtk-update-icon-cache -qf "$theme" || true
@@ -99,7 +149,12 @@ kset kwinrc --group org.kde.kdecoration2 --key library org.kde.darkly
 kset kwinrc --group org.kde.kdecoration2 --key theme Darkly
 kset kwinrc --group Effect-blur --key BlurStrength 12
 kset kwinrc --group Effect-blur --key NoiseStrength 4
-kset kwinrc --group Plugins --key magiclampEnabled true
+# Windows zoom out of their dock icon and back into it (houssamos_appzoom in
+# /usr/share/kwin/effects), replacing KDE's own open, close and minimize animations
+kset kwinrc --group Plugins --key houssamos_appzoomEnabled true
+for effect in scale glide fade squash magiclamp; do
+    kset kwinrc --group Plugins --key "${effect}Enabled" false
+done
 mkdir -p /usr/share/icons/default
 printf '[Icon Theme]\nInherits=Bibata-Modern-Classic\n' > /usr/share/icons/default/index.theme
 
@@ -117,17 +172,21 @@ rm -f /etc/skel/.config/autostart/bazzite-portal.desktop
 if [ -f /etc/xdg/autostart/bazzite-announcement.desktop ]; then
     sed -i 's@^\[Desktop Entry\]@[Desktop Entry]\nHidden=true@' /etc/xdg/autostart/bazzite-announcement.desktop
 fi
-if [ -f /usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/bazzite-pins.js ]; then
-    sed -i -e 's/applications:bazzite-portal\.desktop,//g' \
-           -e 's/,applications:bazzite-portal\.desktop//g' \
-           -e 's/applications:bazzite-portal\.desktop//g' \
-        /usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/bazzite-pins.js
+# Bazzite Portal is the yafti app (io.github.ublue_os.yafti_gtk.desktop); bazzite-pins.js pins it
+# for new accounts, and houssamos-layout-4.js takes it out of existing docks.
+pins=/usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/bazzite-pins.js
+if [ -f "$pins" ]; then
+    sed -i '/yafti/d' "$pins"
 fi
 
 # Bazzite's image may carry its own /etc/hostname; new installs should be called houssamos
 if [ -f /etc/hostname ]; then
     echo "houssamos" > /etc/hostname
 fi
+
+# A new value on every build: /etc/xdg/plasma-workspace/env/houssamos-caches.sh compares it at
+# login and clears KDE's icon, theme and QML caches after an update
+date -u +%Y%m%d%H%M%S > /usr/share/houssamos/build-id
 
 # The v2 Liquid Glass icons (branding/make_icons.py) are the default and inherit Tela-dark.
 
