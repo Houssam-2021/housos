@@ -1,7 +1,7 @@
 # HoussamOS: project context
 
 Read this first in every session. Personal setup (drives, hardware, VM, working style) is in
-`CLAUDE.local.md` next to this file (kept off GitHub). Last updated 2026-10-21.
+`CLAUDE.local.md` next to this file (kept off GitHub). Last updated 2026-10-21 (evening).
 
 ## What HoussamOS is
 
@@ -168,54 +168,57 @@ boot animation and video:
 - VMware changes the screen size during boot, so anything drawn at boot must re-centre.
 - `sudo bootc upgrade` + restart updates an installed system; `sudo bootc status` shows what it follows.
 
-## Status
+## Status (2026-10-21, end of the long first session)
 
-### Done
-- Image + ISO pipeline working; two images (normal, NVIDIA); daily builds; updates verified in a VM
+### Done and seen on screen (VMware)
+- Image + ISO pipeline; two images (normal, NVIDIA); daily builds; updates with `sudo bootc upgrade`
+  work in the VM (rollback has never been tested)
 - Installs and boots in VMware; the VM follows `ghcr.io/houssam-2021/houssamos:latest`
-- Seen working on screen: boot animation, HoussamOS name, automatic `houssamos` hostname, Aurora dark
-  wallpaper, `64px` floating dark-glass dock, `30px` frosted top bar, `HoussamOSDark` menu colours,
-  login wallpaper
-- Installer: HoussamOS artwork in the sidebar, language/keyboard screens
-- Terminal: ASCII logo banner, fastfetch logo, glass Konsole
-- Bazzite Portal/announcements no longer autostart; new installs (and upgraded VM) named `houssamos`
-- Full redesign committed and verified in VM (52149ea)
-- Replaced non-existent `Tela-blue-dark` with `HoussamOS-LiquidGlass` v2 3D icons (`branding/make_icons.py`,
-  `Inherits=Tela-dark,breeze-dark,breeze,hicolor`), removed Bazzite Portal from `bazzite-pins.js` and
-  existing docks (`houssamos-layout-3.js`), raised `LOOK_VERSION` to 3
-- Lock screen clock wired into KDE's lock screen at build time (seen in the VM 2026-10-21; looked wrong,
-  redone below)
+- Seen: HoussamOS name and hostname, Aurora wallpaper, top bar + floating dock layout, glass Konsole
+  with ASCII logo banner and fastfetch logo, installer sidebar art (newer ISOs), Bazzite Portal and
+  announcements gone, liquid glass lock screen clock (Houssam: "so good"), app zoom animations ("good"),
+  squircle icons with no grey boxes, purple boot animation, his cursor, HoussamOS dock apps
 
-- Seen in the VM 2026-10-21 (f7f3c3c): the liquid glass lock screen clock (Houssam: "so good"), the
-  app zoom animations ("good"), no more icon boxes, Bazzite Portal gone
+### Built but not yet seen on screen (latest image build 36369ec, both images succeeded)
+- macOS-like dock: frosted 30 % white over the live blur with vibrancy (plasmarc contrast 1.0,
+  saturation 2.0), one seamless piece (`hint-compose-over-border`), whole-pixel frame pieces, 48 px
+  icons, dodges windows so it always floats
+- Frosted zooming windows (the background-blur shader was removed after it turned the screen black)
+- Liquid glass login screen (SDDM). The build step may have skipped it with a warning (it broke two
+  builds before it was made safe); check on screen, and `ls /usr/share/sddm/themes` in the VM
+- Control Center widget at the right of the top bar: first run on real Plasma (switches, sliders)
+- Houssam asked to "make the liquid glass lockscreen default"; read as the startup login screen.
+  Confirm with him that this is what he meant
 
-### Built but not yet seen on screen
-- Seen in the VM 2026-10-21 (094e9c8): squircle icons, purple boot, cursor, dock pins; the dock still
-  didn't look like macOS's (dark, small icons, visible joins) and the background-blur shader turned the
-  screen black during minimize/restore.
-- Third round: macOS-like dock (seamless frosted fill, whole-pixel frame pieces, bigger icons), frosted
-  zooming windows instead of the shader, liquid glass login screen (SDDM), the Control Center.
+### In progress: HoussamOS on the 256 GB SSD for his ThinkPad T500 (no USB stick)
+- The SABRENT USB SSD (was E:, disk #1) is installed through VMware as a raw disk in BIOS mode by
+  `C:\Users\Houssam\Desktop\install-houssamos-t500.cmd` (+ `.ps1`; finds the disk by name and size,
+  wants ERASE typed, wipes it, takes it offline, makes the VM `C:\Users\Houssam\VMs\HoussamOS-T500`)
+- It uses the first ISO `F:\bootiso\install.iso` (Fedora-looking installer); after installing, in the
+  VM: `sudo parted /dev/sda disk_set pmbr_boot on` (old ThinkPad BIOS + GPT) and `sudo bootc upgrade`,
+  then the SSD goes into the T500 (BIOS: SATA AHCI, discrete ATI graphics if present)
+- T500: BIOS only, Core 2 Duo, Intel GMA 4500 / ATI HD 3650, no Vulkan: no Steam/Proton games, glass
+  effects may be heavy. A lighter look for weak hardware may be needed
 
 ### To do, in order
-1. Wait for the current GitHub image build to finish, then run `sudo bootc upgrade` and restart in the
-   VM:
-   - Check the icons (no boxes), the dock glass and indicators, that Bazzite Portal left the dock, and
-     the open/close/minimize animations.
-   - Test the lock screen clock safely in a window first with `/usr/libexec/kscreenlocker_greet --testing`,
-     and only then test real locking with `Meta+L`.
-   - The startup login screen (SDDM) is still KDE's default look; it needs its own HoussamOS theme.
-   - Control Center widget: pushed with the third round; never run on real Plasma before (only
-     previewed with mock backends).
-   - Next asked for: an installer (Anaconda) theme like Houssam's reference (glass panel over a purple
-     background).
-2. Design leftovers: Bazzite names in `ujust` commands and MOTD tips; SDDM login theme; check the H
-   menu icon on the dark bar.
-3. Real hardware test with the `houssamos-nvidia` ISO (16 GB+ USB stick; 256 GB SSD ideally inside the PC).
-4. Phase 3, the features that make HoussamOS different: undo timeline (snapshots + timeline app),
+1. Houssam tests the latest build in the VM and on the T500 and sends photos: dock, zoom animations,
+   login screen, lock screen, Control Center; fix what's wrong.
+2. Then his choice (asked, not answered yet): start Phase 3 (undo timeline + automatic game mode) or
+   first finish the Phase 2 leftovers below.
+3. Phase 2 leftovers: GRUB boot menu still Fedora/Bazzite; Bazzite names in `ujust` and MOTD tips; a
+   HoussamOS welcome app; installer (Anaconda) redesign like his reference picture, a glass panel over a
+   purple bokeh background (he said "leave it for later"); lighter look option for old hardware.
+4. Real hardware test on his gaming PC with `houssamos-nvidia` (GTX 1080 Ti); test rollback.
+5. Phase 3, the features that make HoussamOS different: undo timeline (snapshots + timeline app),
    gaming extras ("Will my games work?" checker, automatic game mode), privacy report, offline AI
    assistant (biggest), guest mode. Proposed v1 = design + undo timeline + game mode.
-5. Phase 4, ready for others: image signing (cosign key; Houssam pastes `SIGNING_SECRET` in repo
+6. Phase 4, ready for others: image signing (cosign key; Houssam pastes `SIGNING_SECRET` in repo
    settings), ISO hosting (GitHub artifacts expire after 14 days and need a login; Releases cap files
    at 2 GB; options SourceForge or Cloudflare R2), website/docs, credits to Bazzite and Fedora, review
    the open Renovate/Dependabot pull requests.
-6. Ongoing: daily builds run themselves; fix them when Bazzite changes break HoussamOS.
+7. Ongoing: daily builds run themselves; fix them when Bazzite changes break HoussamOS.
+
+### Working with Antigravity
+Houssam sometimes has Google Antigravity (Gemini) work in this repo too. Before editing, check
+`git status` for its uncommitted work, and never let both edit the same files at once. Commit only your
+own files; Antigravity's squircle icons were committed separately (2e8d664).
