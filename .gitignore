@@ -7,3 +7,5 @@ _build-*/**
 branding/preview.png
 branding/preview-dock.jpg
 CLAUDE.local.md
+branding/__pycache__/
+branding/preview-cursor.png

@@ -1,7 +1,8 @@
 /*
     HoussamOS App Zoom: windows grow out of their dock icon when they open and shrink back into
     it when they close or minimize, with a curve close to iOS (quick start, soft landing).
-    Opening is a little slower than closing, as on iOS.
+    Opening is a little slower than closing, as on iOS. Meanwhile everything behind (wallpaper,
+    panels, other windows) blurs and dims, then clears again (shaders/blur_core.frag).
 
     Based on KWin's Scale and Squash effects.
     SPDX-License-Identifier: GPL-2.0-or-later
@@ -27,10 +28,31 @@ const ICON_SIZE = 44;
 // QEasingCurve.OutQuart is the closest of KWin's curves to iOS's cubic-bezier(0.32, 0.72, 0, 1)
 const CURVE = QEasingCurve.OutQuart;
 
+// How far the background blurs (pixels) and dims while an app zooms
+const BLUR_RADIUS = 18;
+const BLUR_BRIGHTNESS = 0.8;
+
 class AppZoomEffect {
     constructor() {
+        // Without the shader (older OpenGL) apps still zoom, just without the background blur
+        this.blurShader = 0;
+        try {
+            this.blurShader = effect.addFragmentShader(Effect.MapTexture, "blur.frag");
+        } catch (error) {
+            this.blurShader = 0;
+        }
+        // What to start when an animation ends, by animation id
+        this.afterAnimation = {};
+
         effect.configChanged.connect(this.loadConfig.bind(this));
         effect.animationEnded.connect(this.cleanupForcedRoles.bind(this));
+        effect.animationEnded.connect((window, animationId) => {
+            const next = this.afterAnimation[animationId];
+            if (next) {
+                delete this.afterAnimation[animationId];
+                next();
+            }
+        });
         effects.windowAdded.connect(this.slotWindowAdded.bind(this));
         effects.windowClosed.connect(this.slotWindowClosed.bind(this));
         effects.windowDataChanged.connect(this.slotWindowDataChanged.bind(this));
@@ -123,8 +145,51 @@ class AppZoomEffect {
         ];
     }
 
+    // The windows behind an app: the wallpaper, the panels and other apps on screen
+    static backgroundWindows(front) {
+        return effects.stackingOrder.filter(window => window !== front && window.visible
+            && !window.minimized && window.onCurrentDesktop
+            && (window.desktopWindow || window.dock || window.normalWindow));
+    }
+
+    // Blur and dim the background towards the peak, then let it clear again
+    pushBack(front, peak, inDuration, outDuration) {
+        if (!this.blurShader) {
+            return;
+        }
+        for (const window of AppZoomEffect.backgroundWindows(front)) {
+            try {
+                const ids = animate({
+                    window: window,
+                    curve: CURVE,
+                    duration: inDuration,
+                    fragmentShader: this.blurShader,
+                    animations: [
+                        { type: Effect.ShaderUniform, uniform: "blurRadius", from: 0.0, to: peak },
+                        { type: Effect.Brightness, from: 1.0, to: BLUR_BRIGHTNESS },
+                    ],
+                });
+                const first = Array.isArray(ids) ? ids[0] : ids;
+                this.afterAnimation[first] = () => animate({
+                    window: window,
+                    curve: QEasingCurve.InOutCubic,
+                    duration: outDuration,
+                    fragmentShader: this.blurShader,
+                    animations: [
+                        { type: Effect.ShaderUniform, uniform: "blurRadius", from: peak, to: 0.0 },
+                        { type: Effect.Brightness, from: BLUR_BRIGHTNESS, to: 1.0 },
+                    ],
+                });
+            } catch (error) {
+                // a window that can't take the shader just stays sharp
+            }
+        }
+    }
+
     // Grow out of the icon; the window becomes opaque in the first part of the movement
     zoomOut(window, icon) {
+        this.pushBack(window, BLUR_RADIUS, Math.round(this.openDuration * 0.5),
+                      Math.round(this.openDuration * 0.7));
         return animate({
             window: window,
             curve: CURVE,
@@ -141,6 +206,8 @@ class AppZoomEffect {
 
     // Shrink into the icon; the window fades out only near the end
     zoomIn(window, icon) {
+        this.pushBack(window, BLUR_RADIUS * 0.6, Math.round(this.closeDuration * 0.4),
+                      Math.round(this.closeDuration * 0.8));
         return animate({
             window: window,
             curve: CURVE,

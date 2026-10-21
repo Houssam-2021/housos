@@ -142,7 +142,7 @@ kset kdeglobals --group KDE --key widgetStyle Darkly
 kset kdeglobals --group General --key ColorScheme HoussamOSDark
 kset kdeglobals --group Icons --key Theme HoussamOS-LiquidGlass
 kset plasmarc --group Theme --key name houssamos-glass
-kset kcminputrc --group Mouse --key cursorTheme Bibata-Modern-Classic
+kset kcminputrc --group Mouse --key cursorTheme HoussamOS-Cursor
 kset ksplashrc --group KSplash --key Engine KSplashQML
 kset ksplashrc --group KSplash --key Theme org.houssamos.glass.desktop
 kset kwinrc --group org.kde.kdecoration2 --key library org.kde.darkly
@@ -155,8 +155,13 @@ kset kwinrc --group Plugins --key houssamos_appzoomEnabled true
 for effect in scale glide fade squash magiclamp; do
     kset kwinrc --group Plugins --key "${effect}Enabled" false
 done
+# HoussamOS cursor (branding/make_cursor.py): Houssam's arrow, everything else from Bibata. The
+# arrow goes by several names; they all point at the one file.
+for name in left_ptr arrow top_left_arrow; do
+    ln -sf default "/usr/share/icons/HoussamOS-Cursor/cursors/$name"
+done
 mkdir -p /usr/share/icons/default
-printf '[Icon Theme]\nInherits=Bibata-Modern-Classic\n' > /usr/share/icons/default/index.theme
+printf '[Icon Theme]\nInherits=HoussamOS-Cursor\n' > /usr/share/icons/default/index.theme
 
 # Fonts: Inter for the interface, JetBrains Mono for code and terminals
 ui_font="Inter,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"
@@ -172,12 +177,9 @@ rm -f /etc/skel/.config/autostart/bazzite-portal.desktop
 if [ -f /etc/xdg/autostart/bazzite-announcement.desktop ]; then
     sed -i 's@^\[Desktop Entry\]@[Desktop Entry]\nHidden=true@' /etc/xdg/autostart/bazzite-announcement.desktop
 fi
-# Bazzite Portal is the yafti app (io.github.ublue_os.yafti_gtk.desktop); bazzite-pins.js pins it
-# for new accounts, and houssamos-layout-4.js takes it out of existing docks.
-pins=/usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/bazzite-pins.js
-if [ -f "$pins" ]; then
-    sed -i '/yafti/d' "$pins"
-fi
+# Bazzite pins its own picks to the dock (Lutris, its Bazaar store and Portal); HoussamOS pins its
+# own in houssamos-layout-5.js instead
+rm -f /usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/bazzite-pins.js
 
 # Bazzite's image may carry its own /etc/hostname; new installs should be called houssamos
 if [ -f /etc/hostname ]; then

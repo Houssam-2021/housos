@@ -2,7 +2,9 @@
 """Generate the HoussamOS branding files in system_files/ from the source art in branding/src/.
 
 Source files (replace any of them, then run this script again):
-  src/boot-animation.mp4  boot animation, logo on a white background, loops seamlessly
+  src/boot-animation.mp4  logo animation on a white background: icons and startup sound
+  src/boot-animation-purple.mp4  the same animation on dark purple: the boot screen, whose
+                          background colour the login splash (Splash.qml) also uses
   src/logo-wordmark.png   "HoussamOS" logo on a white background
   src/wallpaper-*.jpg     desktop, lock and login backgrounds, made by make_wallpapers.py
 
@@ -30,7 +32,6 @@ OUT = ROOT / "system_files"
 THEME_DIR = OUT / "usr/share/plymouth/themes/houssamos"
 ASSET_DIR = OUT / "usr/share/houssamos"
 
-BOOT_BG = 253            # background grey level of the boot video (near white)
 FRAME_WIDTH = 800        # boot frames are scaled to this width to keep the initramfs small
 ICON_SIZES = [16, 22, 24, 32, 36, 48, 64, 96, 128, 256, 512]
 ICON_FRAME_TIME = 4.0    # seconds into the boot video where it shows "HOS"
@@ -104,13 +105,19 @@ def video_frames(video, tmp):
 
 
 def boot_animation(video):
-    """Plymouth frames: crop to the area the logo moves in, scale, reduce to 256 colours."""
+    """Plymouth frames: crop to the area the logo moves in, scale, reduce to 256 colours.
+
+    The background colour comes from the video's top and bottom edges. The last frame is also
+    saved for the login splash, so the logo looks the same there as at the end of the boot."""
     with tempfile.TemporaryDirectory() as t:
         files, fps = video_frames(video, Path(t))
+        first = np.asarray(Image.open(files[0]).convert("RGB")).astype(int)
+        edges = np.concatenate([first[:8].reshape(-1, 3), first[-8:].reshape(-1, 3)])
+        bg = np.median(edges, axis=0).round().astype(int)
         lo, hi = [10**9, 10**9], [0, 0]
         for f in files:
             a = np.asarray(Image.open(f).convert("RGB")).astype(int)
-            ys, xs = np.where(np.abs(a - BOOT_BG).max(axis=2) > 12)
+            ys, xs = np.where(np.abs(a - bg).max(axis=2) > 12)
             if len(xs):
                 lo = [min(lo[0], xs.min()), min(lo[1], ys.min())]
                 hi = [max(hi[0], xs.max()), max(hi[1], ys.max())]
@@ -124,14 +131,20 @@ def boot_animation(video):
             im = Image.open(f).convert("RGB").crop(box)
             im = im.resize((FRAME_WIDTH, round(im.height * FRAME_WIDTH / im.width)), Image.LANCZOS)
             a = np.asarray(im).astype(int)
-            a[np.abs(a - BOOT_BG).max(axis=2) <= 4] = BOOT_BG   # flatten background noise
+            a[np.abs(a - bg).max(axis=2) <= 4] = bg   # flatten background noise
             Image.fromarray(a.astype(np.uint8)).quantize(colors=256, dither=Image.Dither.FLOYDSTEINBERG) \
                 .save(THEME_DIR / f"frame-{i}.png", optimize=True)
         frame_height = round((box[3] - box[1]) * FRAME_WIDTH / (box[2] - box[0]))
+        splash = OUT / "usr/share/plasma/look-and-feel/org.houssamos.glass.desktop/contents/splash/images"
+        splash.mkdir(parents=True, exist_ok=True)
+        last = Image.open(files[-1]).convert("RGB").crop(box)
+        last = np.asarray(last.resize((FRAME_WIDTH, frame_height), Image.LANCZOS)).astype(int)
+        last[np.abs(last - bg).max(axis=2) <= 4] = bg
+        Image.fromarray(last.astype(np.uint8)).save(splash / "boot-logo.png", optimize=True)
 
     script = (ROOT / "branding" / "houssamos.script.in").read_text()
     script = script.replace("@FRAME_COUNT@", str(len(files))).replace("@FPS@", str(fps)) \
-                   .replace("@BG@", f"{BOOT_BG / 255:.3f}")
+                   .replace("@BG@", ", ".join(f"{c / 255:.3f}" for c in bg))
     (THEME_DIR / "houssamos.script").write_text(script, newline="\n")
     (THEME_DIR / "houssamos.plymouth").write_text(
         "[Plymouth Theme]\n"
@@ -142,7 +155,8 @@ def boot_animation(video):
         "ImageDir=/usr/share/plymouth/themes/houssamos\n"
         "ScriptFile=/usr/share/plymouth/themes/houssamos/houssamos.script\n", newline="\n")
     size = sum(p.stat().st_size for p in THEME_DIR.glob("frame-*.png"))
-    print(f"boot animation: {len(files)} frames, {fps} fps, {FRAME_WIDTH}x{frame_height}, {size / 1e6:.1f} MB")
+    print(f"boot animation: {len(files)} frames, {fps} fps, {FRAME_WIDTH}x{frame_height}, {size / 1e6:.1f} MB, "
+          f"background #{bg[0]:02x}{bg[1]:02x}{bg[2]:02x} (Splash.qml uses the same colour)")
 
 
 def icons(video):
@@ -265,7 +279,7 @@ def preview(icons, logo):
 
 
 if __name__ == "__main__":
-    boot_animation(SRC / "boot-animation.mp4")
+    boot_animation(SRC / "boot-animation-purple.mp4")
     icon_set = icons(SRC / "boot-animation.mp4")
     logo = wordmark(SRC / "logo-wordmark.png")
     wallpaper(SRC / "wallpaper-light.jpg", SRC / "wallpaper-dark.jpg")

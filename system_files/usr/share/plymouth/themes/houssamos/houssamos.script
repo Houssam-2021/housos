@@ -8,8 +8,8 @@ frame_count = 192;
 fps = 24;
 refresh_rate = 50;   // Plymouth calls the refresh function about 50 times a second
 
-Window.SetBackgroundTopColor(0.992, 0.992, 0.992);
-Window.SetBackgroundBottomColor(0.992, 0.992, 0.992);
+Window.SetBackgroundTopColor(0.133, 0.086, 0.247);
+Window.SetBackgroundBottomColor(0.133, 0.086, 0.247);
 
 // Twice the size on 4K-class screens
 fun scale_for(width)
@@ -77,7 +77,7 @@ fun place_centered(sprite, image, y)
 
 fun dark_text(text)
 {
-    return Image.Text(text, 0.15, 0.15, 0.2, 1, "Sans 16");
+    return Image.Text(text, 0.93, 0.92, 0.98, 1, "Sans 16");
 }
 
 fun display_password_callback(prompt, bullets)

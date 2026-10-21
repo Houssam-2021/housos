@@ -2,11 +2,10 @@
 """Generate the HoussamOS Glass Plasma theme and the HoussamOS colour schemes.
 
 Everything is drawn as vector shapes (no pictures), so it stays sharp at any scale:
-  - floating dock: rounded frosted glass, lighter at the top, with a bright rim of light
+  - floating dock: just live blur in a rounded rectangle, with a faint frost and hairline edge
   - top bar: slim frosted strip with a hairline underneath
   - menus, popups, notifications, widgets and tooltips: dark glass, a little more solid
-  - dock indicators: a soft glass tile behind the app in use or under the pointer, and a
-    small light under every running app
+  - dock indicators: a small dot under every running app, brightest for the app in use
 Each shape also gets a mask, which is the exact area KWin blurs behind it (the live blur).
 Elements a theme does not draw fall back to Breeze, coloured by the theme's colours.
 
@@ -38,18 +37,19 @@ PALETTE = {
 
 # (radius, glass opacity, edge opacity, content margins top/bottom/left/right)
 SHAPES = {
-    "dock": (22, 0.14, 0.24, (6, 6, 10, 10)),
+    "dock": (20, 0.08, 0.16, (6, 6, 10, 10)),
     "dialog": (14, 0.72, 0.12, (12, 12, 12, 12)),
     "tooltip": (10, 0.86, 0.12, (8, 8, 10, 10)),
 }
 
-# The dock is light frosted glass rather than dark glass, so it stays visible over dark windows:
-# a pale tint, extra light at the top (glow) fading out over the top corners, and a brighter
-# rim along the top edge where light would catch it.
-DOCK_GLASS = {"tint": (236, 242, 255), "glow": 0.12, "rim": 0.55}
+# The dock is the blur itself: a faint white frost, so it reads as a light pane over dark
+# windows too. It stays one flat colour, because translucent shading split across the frame's
+# nine pieces shows seams where Plasma joins them.
+DOCK_GLASS = {"tint": (255, 255, 255)}
 
-# Dock indicators (widgets/tasks.svg): corner size, glass tile radius, and the space around icons
-TASK_CORNER = 22
+# Dock indicators (widgets/tasks.svg): corner size (wide, so the dot between them stays small),
+# the unused glass tile radius, and the space around icons
+TASK_CORNER = 24
 TASK_RADIUS = 12
 TASK_MARGINS = (3, 5, 4, 4)
 
@@ -170,7 +170,8 @@ class Svg:
 
         dot = ""
         if light:
-            dot = f'<rect {rgba(light[0], light[1])} x="0" y="{c - 4}" width="{w}" height="2.5" rx="1.25"/>'
+            # An ellipse across the whole piece: stretched to the gap between the corners it becomes a round dot
+            dot = f'<ellipse {rgba(light[0], light[1])} cx="{w / 2}" cy="{c - 3}" rx="{w / 2}" ry="2"/>'
         side("top", w, c, (0, 0, w, 1))
         side("bottom", w, c, (0, c - 1, w, 1), dot)
         side("left", c, w, (0, 0, 1, w))
@@ -229,23 +230,21 @@ def frame_svg(shape, with_topbar=False):
 
 
 def tasks_svg():
-    """Dock indicators. The task manager asks for a state ("focus" is the app in use, the
-    unprefixed frame is a pinned app that isn't running) with "-hover" when the pointer is on it,
-    falling back to "hover" and then to the plain state. Every state gets the same margins so
-    icons keep their size when an app starts."""
+    """Dock indicators, as on macOS: a dot under running apps and nothing behind the icons.
+    The task manager asks for a state ("focus" is the app in use, the unprefixed frame is a
+    pinned app that isn't running) with "-hover" when the pointer is on it, falling back to
+    "hover" and then to the plain state, so every state is listed. Every state gets the same
+    margins so icons keep their size when an app starts."""
     white, attention = PALETTE["edge"], PALETTE["neutral"]
-    states = {
-        "": (None, None),
-        "normal-": (None, (white, 0.55)),
-        "minimized-": (None, (white, 0.30)),
-        "attention-": (None, (attention, 0.95)),
-        "focus-": ((0.12, 0.20), (white, 0.95)),
-        "hover-": ((0.08, 0.14), (white, 0.55)),
-        "launcher-hover-": ((0.08, 0.14), None),
-        "focus-hover-": ((0.16, 0.24), (white, 0.95)),
-        "minimized-hover-": ((0.08, 0.14), (white, 0.30)),
-        "attention-hover-": ((0.08, 0.14), (attention, 0.95)),
-    }
+    dots = {"": None, "normal-": (white, 0.55), "minimized-": (white, 0.30),
+            "attention-": (attention, 0.95), "focus-": (white, 0.95), "launcher-": None}
+    states = {}
+    for state, light in dots.items():
+        if state != "launcher-":
+            states[state] = (None, light)
+        if state:
+            states[state + "hover-"] = (None, light)
+    states["hover-"] = (None, dots["normal-"])
     svg = Svg()
     for prefix, (tile, light) in states.items():
         svg.task_frame(prefix, tile, light)
@@ -336,7 +335,7 @@ def main():
     (theme / "metadata.json").write_text(json.dumps({
         "KPlugin": {"Id": THEME_ID, "Name": "HoussamOS Glass",
                     "Description": "Glass with live blur: floating frosted dock, slim top bar, glass menus",
-                    "Authors": [{"Name": "Houssam"}], "License": "CC-BY-SA-4.0", "Version": "2.1",
+                    "Authors": [{"Name": "Houssam"}], "License": "CC-BY-SA-4.0", "Version": "2.2",
                     "Website": "https://github.com/Houssam-2021/housos"},
         "X-Plasma-API-Minimum-Version": "6.0"
     }, indent=4) + "\n", newline="\n")

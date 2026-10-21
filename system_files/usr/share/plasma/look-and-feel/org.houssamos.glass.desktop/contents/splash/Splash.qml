@@ -1,70 +1,42 @@
 import QtQuick
 
-// HoussamOS login splash: the glass logo on deep navy, with a thin blue-to-violet progress line
-// that fills as the desktop loads. KSplash sets `stage` from 1 to 6.
+// HoussamOS login splash: it continues the boot animation. Same purple as the boot video
+// (branding/make_branding.py prints it), the logo as the video's last frame at the size the boot
+// screen draws it, and a thin light line underneath that fills as the desktop loads.
+// KSplash sets `stage` from 1 to 6.
 Rectangle {
     id: root
 
     property int stage
+    // The boot screen draws its 800 px frames at whole multiples on large screens
+    readonly property int bootScale: Math.max(1, Math.floor((width + 400) / 1920))
 
-    gradient: Gradient {
-        GradientStop { position: 0.0; color: "#070a16" }
-        GradientStop { position: 1.0; color: "#0d1226" }
-    }
-
-    // Soft glow behind the logo
-    Rectangle {
-        anchors.centerIn: logo
-        width: logo.width * 1.6
-        height: width * 0.5
-        radius: height / 2
-        opacity: logo.opacity * 0.35
-        gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 0.5; color: "#2a3f8f" }
-            GradientStop { position: 1.0; color: "transparent" }
-        }
-    }
+    color: "#22163f"
 
     Image {
         id: logo
         anchors.centerIn: parent
-        anchors.verticalCenterOffset: -24
-        source: "images/houssamos.png"
-        width: Math.min(root.width * 0.32, 560)
-        fillMode: Image.PreserveAspectFit
+        source: "images/boot-logo.png"
+        width: implicitWidth * root.bootScale
+        height: implicitHeight * root.bootScale
         smooth: true
-        mipmap: true
-        opacity: 0
-
-        NumberAnimation on opacity {
-            from: 0
-            to: 1
-            duration: 800
-            easing.type: Easing.OutCubic
-        }
     }
 
     Rectangle {
         id: track
         anchors.top: logo.bottom
-        anchors.topMargin: 48
+        anchors.topMargin: 12 * root.bootScale
         anchors.horizontalCenter: parent.horizontalCenter
-        width: logo.width * 0.4
-        height: 3
-        radius: 1.5
-        color: "#1c2236"
+        width: 180 * root.bootScale
+        height: 3 * root.bootScale
+        radius: height / 2
+        color: Qt.rgba(1, 1, 1, 0.14)
 
         Rectangle {
             height: parent.height
             radius: parent.radius
             width: parent.width * Math.min(Math.max(root.stage, 0), 6) / 6
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: "#4c8dff" }
-                GradientStop { position: 1.0; color: "#8b6cff" }
-            }
+            color: Qt.rgba(0.92, 0.94, 1, 0.85)
 
             Behavior on width {
                 NumberAnimation {
