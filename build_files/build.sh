@@ -167,10 +167,6 @@ if [ -d "$shell_contents/lockscreen" ]; then
     install -Dm644 /ctx/branding/LiquidGlassClock.qml "$shell_contents/lockscreen/LiquidGlassClock.qml"
     install -Dm644 /ctx/branding/LiquidGlassClock.qml "$shell_contents/lockscreen/Clock.qml"
 fi
-for qml_clock in /usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml \
-                 /usr/lib/qt6/qml/org/kde/breeze/components/Clock.qml; do
-    [ -f "$qml_clock" ] && install -Dm644 /ctx/branding/LiquidGlassClock.qml "$qml_clock" || true
-done
 
 for ui in "$lnf_dst/lockscreen/LockScreenUi.qml" "$shell_contents/lockscreen/LockScreenUi.qml"; do
     [ -f "$ui" ] || continue

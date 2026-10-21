@@ -70,6 +70,9 @@ boot animation and video:
 
 ## Lessons learned (avoid repeating these)
 
+- **During the container build, `/ctx` contains only `build_files` and `system_files`** (`Containerfile`
+  `ctx` stage); anything else (such as `branding/LiquidGlassClock.qml`) must be explicitly `COPY`-ed into
+  the `ctx` stage in `Containerfile`.
 - **Terra's `tela-icon-theme` only installs `Tela`, `Tela-light` and `Tela-dark`** (`install.sh` with no
   colour argument installs only the "standard" variant). `Tela-blue-dark` does not exist and causes
   missing/blank icons (`System Settings`, `Konsole`). Always use `Tela-dark`.

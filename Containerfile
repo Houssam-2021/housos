@@ -5,6 +5,7 @@ ARG BASE_IMAGE=ghcr.io/ublue-os/bazzite:stable
 FROM scratch AS ctx
 COPY build_files /
 COPY system_files /system_files
+COPY branding/LiquidGlassClock.qml /branding/LiquidGlassClock.qml
 
 # Base Image
 FROM ${BASE_IMAGE}
