@@ -10,7 +10,7 @@ on:
     branches:
       - main
     paths-ignore:
-      - '**/README.md'
+      - '**/*.md'
       - 'disk_config/**'
       - '.github/workflows/build-disk.yml'
   workflow_dispatch:

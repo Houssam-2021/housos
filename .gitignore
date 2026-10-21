@@ -6,3 +6,4 @@ _build-*/**
 *_rpm-ostree_*
 branding/preview.png
 branding/preview-dock.jpg
+CLAUDE.local.md
