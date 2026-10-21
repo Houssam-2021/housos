@@ -5,8 +5,8 @@
 // Safety guarantees for kscreenlocker (prevents "screen locker is broken"):
 //   1. Uses only standard Qt 6 core modules (QtQuick, QtQuick.Layouts, QtQuick.Effects)
 //      shipped in qt6-qtdeclarative on Fedora/Bazzite.
-//   2. Root item is ColumnLayout with Layout.alignment / implicit sizes matching
-//      upstream Plasma 6 org.kde.plasma.desktop/contents/lockscreen/Clock.qml.
+//   2. Root item is ColumnLayout with softwareRendering, Layout.alignment and
+//      implicit sizes matching upstream Plasma 6 Clock.qml.
 //   3. Never binds ShaderEffectSource to an ancestor Item (which causes a Qt6
 //      scene-graph parent-child cycle); translucent frosted glass + 3D tubular
 //      specular bevels composite directly over the lockscreen wallpaper.
@@ -19,15 +19,25 @@ ColumnLayout {
     id: root
     spacing: 0
     Layout.alignment: Qt.AlignHCenter
-    Layout.preferredWidth: 500
-    Layout.preferredHeight: 390
-    implicitWidth: 500
-    implicitHeight: 390
+    Layout.preferredWidth: 580
+    Layout.preferredHeight: 230
+    implicitWidth: 580
+    implicitHeight: 230
 
-    property bool use24Hour: false
+    // Required by LockScreenUi.qml / upstream Clock.qml
+    readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
+
+    // Follow the system locale's 12/24-hour preference
+    property bool use24Hour: Qt.locale().timeFormat(Locale.ShortFormat).toLowerCase().indexOf("ap") === -1
     property string timeString: "3:23"
     property string dateString: "Wednesday, October 21"
     property real tubeWidth: 25
+
+    // Scale smoothly on shorter screens (such as 800x600 --testing or small VM windows)
+    // so the ultra-tall digits never overlap the user avatar below the clock.
+    readonly property real clockScale: parent && parent.height > 0
+        ? Math.min(0.78, Math.max(0.50, parent.height / 1200))
+        : 0.68
 
     function updateClock() {
         const now = new Date()
@@ -43,7 +53,7 @@ ColumnLayout {
             if (maskCanvas.available) maskCanvas.requestPaint()
             if (bevelCanvas.available) bevelCanvas.requestPaint()
         }
-        root.dateString = Qt.formatDate(now, "dddd, MMMM d")
+        root.dateString = Qt.formatDate(now, Locale.LongFormat)
     }
 
     Component.onCompleted: updateClock()
@@ -56,106 +66,123 @@ ColumnLayout {
         onTriggered: root.updateClock()
     }
 
-    // Subtle Date Label Above the Ultra-Tall Digits
-    Text {
-        Layout.alignment: Qt.AlignHCenter
-        text: root.dateString
-        color: "#E8FFFFFF"
-        font.family: "Inter"
-        font.pixelSize: 19
-        font.weight: Font.DemiBold
-        font.letterSpacing: 0.6
-        style: Text.Raised
-        styleColor: "#55000000"
-    }
-
-    // Main Clock Stage
     Item {
-        id: clockStage
         Layout.alignment: Qt.AlignHCenter
-        Layout.preferredWidth: 480
-        Layout.preferredHeight: 360
-        width: 480
-        height: 360
+        Layout.preferredWidth: 580
+        Layout.preferredHeight: Math.round(390 * root.clockScale)
+        implicitWidth: 580
+        implicitHeight: Math.round(390 * root.clockScale)
 
-        // ---------------------------------------------------------------------
-        // PASS 1: Ultra-Tall Condensed Numeral Alpha Mask (for soft elevation shadow)
-        // ---------------------------------------------------------------------
-        Canvas {
-            id: maskCanvas
-            anchors.fill: parent
-            layer.enabled: true
-            visible: false
-            onAvailableChanged: if (available) requestPaint()
-            onPaint: {
-                const ctx = getContext("2d")
-                ctx.reset()
-                root.drawTimeGeometry(ctx, root.timeString, "#ffffff", root.tubeWidth, 0, 0)
+        Column {
+            anchors.centerIn: parent
+            width: 580
+            height: 390
+            spacing: 0
+            scale: root.clockScale
+            transformOrigin: Item.Center
+
+            // Subtle Date Label Above the Ultra-Tall Digits
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: root.dateString
+                color: "#E8FFFFFF"
+                font.family: "Inter"
+                font.pixelSize: 20
+                font.weight: Font.DemiBold
+                font.letterSpacing: 0.6
+                style: root.softwareRendering ? Text.Outline : Text.Raised
+                styleColor: "#66000000"
             }
-        }
 
-        // Soft Drop Shadow Behind Glass Tubes
-        MultiEffect {
-            anchors.fill: parent
-            source: maskCanvas
-            shadowEnabled: true
-            shadowColor: "#70050814"
-            shadowBlur: 0.75
-            shadowVerticalOffset: 10
-            shadowHorizontalOffset: 0
-            opacity: 0.55
-        }
+            // Main Clock Stage (580 px wide so 4-digit times like 10:23 or 23:59 never clip)
+            Item {
+                id: clockStage
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: 580
+                height: 360
 
-        // Soft Inner/Ambient Frosted Glow Behind the Tubes
-        MultiEffect {
-            anchors.fill: parent
-            source: maskCanvas
-            blurEnabled: true
-            blurMax: 28
-            blur: 0.55
-            opacity: 0.22
-        }
+                // -----------------------------------------------------------------
+                // PASS 1: Ultra-Tall Condensed Numeral Alpha Mask (for soft shadow)
+                // -----------------------------------------------------------------
+                Canvas {
+                    id: maskCanvas
+                    anchors.fill: parent
+                    layer.enabled: true
+                    visible: false
+                    onAvailableChanged: if (available) requestPaint()
+                    onPaint: {
+                        const ctx = getContext("2d")
+                        ctx.reset()
+                        root.drawTimeGeometry(ctx, root.timeString, "#ffffff", root.tubeWidth, 0, 0)
+                    }
+                }
 
-        // ---------------------------------------------------------------------
-        // PASS 2: Milky Glass Sheen + 3D Tubular Specular Bevel Rim
-        // ---------------------------------------------------------------------
-        Canvas {
-            id: bevelCanvas
-            anchors.fill: parent
-            layer.enabled: true
-            onAvailableChanged: if (available) requestPaint()
-            onPaint: {
-                const ctx = getContext("2d")
-                ctx.reset()
+                // Soft Drop Shadow Behind Glass Tubes
+                MultiEffect {
+                    anchors.fill: parent
+                    source: maskCanvas
+                    visible: !root.softwareRendering
+                    shadowEnabled: true
+                    shadowColor: "#70050814"
+                    shadowBlur: 0.75
+                    shadowVerticalOffset: 10
+                    shadowHorizontalOffset: 0
+                    opacity: 0.55
+                }
 
-                // 1. Clip all optical bevel passes strictly inside the numeral strokes
-                root.drawTimeGeometry(ctx, root.timeString, "#ffffff", root.tubeWidth, 0, 0)
-                ctx.globalCompositeOperation = "source-in"
+                // Soft Inner/Ambient Frosted Glow Behind the Tubes
+                MultiEffect {
+                    anchors.fill: parent
+                    source: maskCanvas
+                    visible: !root.softwareRendering
+                    blurEnabled: true
+                    blurMax: 28
+                    blur: 0.55
+                    opacity: 0.22
+                }
 
-                // 2. Milky Vertical Glass Gradient (Clearer at top, glossy frost in lower-middle)
-                const sheen = ctx.createLinearGradient(0, 20, 0, 340)
-                sheen.addColorStop(0.00, "rgba(210, 228, 255, 0.24)")
-                sheen.addColorStop(0.32, "rgba(235, 244, 255, 0.30)")
-                sheen.addColorStop(0.58, "rgba(255, 255, 255, 0.54)")
-                sheen.addColorStop(0.82, "rgba(240, 246, 255, 0.38)")
-                sheen.addColorStop(1.00, "rgba(255, 255, 255, 0.60)")
-                ctx.fillStyle = sheen
-                ctx.fillRect(0, 0, width, height)
+                // -----------------------------------------------------------------
+                // PASS 2: Milky Glass Sheen + 3D Tubular Specular Bevel Rim
+                // -----------------------------------------------------------------
+                Canvas {
+                    id: bevelCanvas
+                    anchors.fill: parent
+                    layer.enabled: true
+                    onAvailableChanged: if (available) requestPaint()
+                    onPaint: {
+                        const ctx = getContext("2d")
+                        ctx.reset()
 
-                // 3. Outer Dark/Warm Refractive Edge Ring (Physical glass thickness)
-                ctx.globalCompositeOperation = "source-atop"
-                root.drawTimeGeometry(ctx, root.timeString, "rgba(18, 24, 38, 0.42)", root.tubeWidth + 2, 1.5, 2.0)
+                        // 1. Clip all optical bevel passes strictly inside the numeral strokes
+                        root.drawTimeGeometry(ctx, root.timeString, "#ffffff", root.tubeWidth, 0, 0)
+                        ctx.globalCompositeOperation = "source-in"
 
-                // 4. Top-Left 3D Curved Specular Highlight Band
-                root.drawTimeGeometry(ctx, root.timeString, "rgba(255, 255, 255, 0.94)", root.tubeWidth - 4, -2.2, -2.2)
+                        // 2. Milky Vertical Glass Gradient (Clearer at top, glossy frost in lower-middle)
+                        const sheen = ctx.createLinearGradient(0, 20, 0, 340)
+                        sheen.addColorStop(0.00, "rgba(210, 228, 255, 0.24)")
+                        sheen.addColorStop(0.32, "rgba(235, 244, 255, 0.30)")
+                        sheen.addColorStop(0.58, "rgba(255, 255, 255, 0.54)")
+                        sheen.addColorStop(0.82, "rgba(240, 246, 255, 0.38)")
+                        sheen.addColorStop(1.00, "rgba(255, 255, 255, 0.60)")
+                        ctx.fillStyle = sheen
+                        ctx.fillRect(0, 0, width, height)
 
-                // 5. Core Glass Transparency Cutout (Leaves the specular rim on the edges)
-                ctx.globalCompositeOperation = "destination-out"
-                root.drawTimeGeometry(ctx, root.timeString, "rgba(0, 0, 0, 0.58)", root.tubeWidth - 8, 0.8, 0.8)
+                        // 3. Outer Dark/Warm Refractive Edge Ring (Physical glass thickness)
+                        ctx.globalCompositeOperation = "source-atop"
+                        root.drawTimeGeometry(ctx, root.timeString, "rgba(18, 24, 38, 0.42)", root.tubeWidth + 2, 1.5, 2.0)
 
-                // 6. Crisp 1.5px Specular Rim Highlight Along the Tube Contour
-                ctx.globalCompositeOperation = "source-over"
-                root.drawTimeGeometry(ctx, root.timeString, "rgba(255, 255, 255, 0.62)", root.tubeWidth - 1.5, -0.5, -0.5)
+                        // 4. Top-Left 3D Curved Specular Highlight Band
+                        root.drawTimeGeometry(ctx, root.timeString, "rgba(255, 255, 255, 0.94)", root.tubeWidth - 4, -2.2, -2.2)
+
+                        // 5. Core Glass Transparency Cutout (Leaves the specular rim on the edges)
+                        ctx.globalCompositeOperation = "destination-out"
+                        root.drawTimeGeometry(ctx, root.timeString, "rgba(0, 0, 0, 0.58)", root.tubeWidth - 8, 0.8, 0.8)
+
+                        // 6. Crisp 1.5px Specular Rim Highlight Along the Tube Contour
+                        ctx.globalCompositeOperation = "source-over"
+                        root.drawTimeGeometry(ctx, root.timeString, "rgba(255, 255, 255, 0.62)", root.tubeWidth - 1.5, -0.5, -0.5)
+                    }
+                }
             }
         }
     }
@@ -170,7 +197,7 @@ ColumnLayout {
         const spacing = 14
         let totalW = (chars.length - 1) * spacing
         for (let k = 0; k < widths.length; k++) totalW += widths[k]
-        let curX = (480 - totalW) / 2 + ox
+        let curX = (clockStage.width - totalW) / 2 + ox
 
         ctx.save()
         ctx.strokeStyle = color

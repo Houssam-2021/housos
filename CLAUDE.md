@@ -64,6 +64,8 @@ boot animation and video:
   Bibata-Modern-Classic cursor, `HoussamOS-LiquidGlass` v2 3D icons as default with `Tela-dark`
   fallback (`Inherits=Tela-dark,breeze-dark,breeze,hicolor`) from **Terra** (`dnf5 install --enablerepo=terra`)
 - Magic lamp minimise, stronger blur; dark login splash; dark glass Konsole
+- Liquid Glass lock screen clock (`branding/LiquidGlassClock.qml`, wired into KDE's lock screen at
+  build time in `build_files/build.sh`)
 - Boot animation stays Houssam's white video (Plymouth script theme)
 
 ## Lessons learned (avoid repeating these)
@@ -71,6 +73,14 @@ boot animation and video:
 - **Terra's `tela-icon-theme` only installs `Tela`, `Tela-light` and `Tela-dark`** (`install.sh` with no
   colour argument installs only the "standard" variant). `Tela-blue-dark` does not exist and causes
   missing/blank icons (`System Settings`, `Konsole`). Always use `Tela-dark`.
+- **KDE Plasma 6 lock screen layout**: `kscreenlocker_greet` loads `Plasma/Shell`
+  (`/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml`), and
+  `LockScreenUi.qml` imports `org.kde.breeze.components` (which is precompiled into
+  `libcomponentsplugin.so`). `build.sh` copies `lockscreen` and `components` into
+  `org.houssamos.glass.desktop/contents/`, installs `LiquidGlassClock.qml` and `Clock.qml` in both the
+  Global Theme and `org.kde.plasma.desktop`, and rewrites `Clock {` to `LiquidGlassClock {` in
+  `LockScreenUi.qml` (plus clamps `y > 0` for small windows) so the compiled QRC module cannot shadow
+  our clock.
 
 - **The Bash tool eats backslashes** in heredocs and inline Python (`\\` becomes `\`, `\n` can become
   a real newline). For text with backslashes use the Write/Edit tools, or `chr(92)` in Python.
@@ -106,20 +116,24 @@ boot animation and video:
 - Full redesign committed and verified in VM (52149ea)
 - Replaced non-existent `Tela-blue-dark` with `HoussamOS-LiquidGlass` v2 3D icons (`branding/make_icons.py`,
   `Inherits=Tela-dark,breeze-dark,breeze,hicolor`), removed Bazzite Portal from `bazzite-pins.js` and
-  existing docks (`houssamos-layout-3.js`), raised `LOOK_VERSION` to 3, and added the KDE Plasma 6 QML
-  lock screen clock (`branding/LiquidGlassClock.qml`)
+  existing docks (`houssamos-layout-3.js`), raised `LOOK_VERSION` to 3
+- Wired the KDE Plasma 6 Liquid Glass lock screen clock (`branding/LiquidGlassClock.qml`, `580px` stage,
+  locale-aware 12/24-hour time, `softwareRendering` property) into the lock screen in `build_files/build.sh`
+  with build-time verification
 
 ### Built but not yet seen on screen
-- The v2 `HoussamOS-LiquidGlass` icons + `Tela-dark` fallback (`LOOK_VERSION=3`) and Bazzite Portal
-  dock removal (`houssamos-layout-3.js`).
+- The v2 `HoussamOS-LiquidGlass` icons + `Tela-dark` fallback (`LOOK_VERSION=3`), Bazzite Portal dock
+  removal (`houssamos-layout-3.js`), and the Liquid Glass lock screen clock (`branding/LiquidGlassClock.qml`).
 
 ### To do, in order
 1. Wait for the current GitHub image build to finish, then run `sudo bootc upgrade` and restart in the
-   VM to verify the v2 Liquid Glass icons, `Tela-dark` fallbacks (`System Settings`, `Konsole`, tray
-   icons) and Bazzite Portal dock removal.
-2. Design leftovers: Bazzite names in `ujust` commands and MOTD tips; SDDM login theme; wire and test
-   the KDE Plasma 6 lock screen clock (`branding/LiquidGlassClock.qml`) in the VM; check the H menu
-   icon on the dark bar.
+   VM:
+   - Check the v2 Liquid Glass icons, `Tela-dark` fallbacks (`System Settings`, `Konsole`, tray icons)
+     and Bazzite Portal dock removal.
+   - Test the lock screen clock safely in a window first with `/usr/libexec/kscreenlocker_greet --testing`,
+     and only then test real locking with `Meta+L`.
+2. Design leftovers: Bazzite names in `ujust` commands and MOTD tips; SDDM login theme; check the H
+   menu icon on the dark bar.
 3. Real hardware test with the `houssamos-nvidia` ISO (16 GB+ USB stick; 256 GB SSD ideally inside the PC).
 4. Phase 3, the features that make HoussamOS different: undo timeline (snapshots + timeline app),
    gaming extras ("Will my games work?" checker, automatic game mode), privacy report, offline AI

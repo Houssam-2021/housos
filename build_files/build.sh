@@ -131,6 +131,62 @@ fi
 
 # The v2 Liquid Glass icons (branding/make_icons.py) are the default and inherit Tela-dark.
 
+# Lock screen clock: copy KDE's lock screen from the base image at build time so it always
+# matches the image's Plasma version, then wire in branding/LiquidGlassClock.qml.
+# In Plasma 6, kscreenlocker loads Plasma/Shell (org.kde.plasma.desktop/contents/lockscreen)
+# and LockScreenUi.qml imports org.kde.breeze.components (compiled into libcomponentsplugin.so),
+# while look-and-feel themes can also carry contents/lockscreen and contents/components.
+lnf_dst=/usr/share/plasma/look-and-feel/org.houssamos.glass.desktop/contents
+breeze_lnf=/usr/share/plasma/look-and-feel/org.kde.breeze.desktop/contents
+shell_contents=/usr/share/plasma/shells/org.kde.plasma.desktop/contents
+
+if [ -d "$breeze_lnf/lockscreen" ]; then
+    lock_src="$breeze_lnf"
+elif [ -d "$shell_contents/lockscreen" ]; then
+    lock_src="$shell_contents"
+else
+    echo "Could not find KDE lockscreen QML directory in base image"
+    exit 1
+fi
+
+cp -a "$lock_src/lockscreen" "$lnf_dst/"
+for sub in components osd logout; do
+    if [ -d "$breeze_lnf/$sub" ] && [ ! -e "$lnf_dst/$sub" ]; then
+        cp -a "$breeze_lnf/$sub" "$lnf_dst/"
+    elif [ -d "$lock_src/$sub" ] && [ ! -e "$lnf_dst/$sub" ]; then
+        cp -a "$lock_src/$sub" "$lnf_dst/"
+    fi
+done
+
+mkdir -p "$lnf_dst/components"
+install -Dm644 /ctx/branding/LiquidGlassClock.qml "$lnf_dst/lockscreen/LiquidGlassClock.qml"
+install -Dm644 /ctx/branding/LiquidGlassClock.qml "$lnf_dst/lockscreen/Clock.qml"
+install -Dm644 /ctx/branding/LiquidGlassClock.qml "$lnf_dst/components/Clock.qml"
+
+if [ -d "$shell_contents/lockscreen" ]; then
+    install -Dm644 /ctx/branding/LiquidGlassClock.qml "$shell_contents/lockscreen/LiquidGlassClock.qml"
+    install -Dm644 /ctx/branding/LiquidGlassClock.qml "$shell_contents/lockscreen/Clock.qml"
+fi
+for qml_clock in /usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml \
+                 /usr/lib/qt6/qml/org/kde/breeze/components/Clock.qml; do
+    [ -f "$qml_clock" ] && install -Dm644 /ctx/branding/LiquidGlassClock.qml "$qml_clock" || true
+done
+
+for ui in "$lnf_dst/lockscreen/LockScreenUi.qml" "$shell_contents/lockscreen/LockScreenUi.qml"; do
+    [ -f "$ui" ] || continue
+    sed -i -e 's/\bClock[[:space:]]*{/LiquidGlassClock {/g' \
+           -e 's|y: (mainBlock\.userList\.y + mainStack\.y)/2 - height/2|y: Math.max(12, (mainBlock.userList.y + mainStack.y)/2 - height/2)|g' \
+        "$ui"
+done
+
+if [ ! -f "$lnf_dst/lockscreen/LockScreenUi.qml" ] || \
+   [ ! -f "$lnf_dst/lockscreen/Clock.qml" ] || \
+   [ ! -f "$lnf_dst/lockscreen/LiquidGlassClock.qml" ] || \
+   ! grep -q 'LiquidGlassClock' "$lnf_dst/lockscreen/LockScreenUi.qml"; then
+    echo "Lock screen clock swap failed"
+    exit 1
+fi
+
 # Glass terminal: Konsole (Bazzite's KDE terminal) opens with the HoussamOS profile, dark glass
 # with live blur of what is behind it, JetBrains Mono, and without the menu bar and toolbars.
 # The terminal logo and welcome banner come from system_files (fastfetch config, motd template).
