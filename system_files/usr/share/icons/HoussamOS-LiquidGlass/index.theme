@@ -1,9 +1,9 @@
 [Icon Theme]
 Name=HoussamOS Liquid Glass
-Comment=Optical liquid-glass icons for HoussamOS. Clear shells, chromatic rims, trapped light.
-Inherits=breeze,Adwaita,hicolor
+Comment=Studio 3D Liquid Glass icons for HoussamOS. Smooth Bezier squircles, 3D specular bevels, and sky-blue glass folders.
+Inherits=Tela-dark,breeze-dark,breeze,hicolor
 Example=folder
-Directories=scalable/apps,scalable/places,scalable/devices,scalable/mimetypes
+Directories=scalable/apps,scalable/places
 
 [scalable/apps]
 Size=128
@@ -19,20 +19,4 @@ MinSize=16
 MaxSize=512
 Scale=1
 Context=Places
-Type=Scalable
-
-[scalable/devices]
-Size=128
-MinSize=16
-MaxSize=512
-Scale=1
-Context=Devices
-Type=Scalable
-
-[scalable/mimetypes]
-Size=128
-MinSize=16
-MaxSize=512
-Scale=1
-Context=MimeTypes
 Type=Scalable

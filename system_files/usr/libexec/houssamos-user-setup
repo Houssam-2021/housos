@@ -3,11 +3,11 @@
 #
 # Accounts that already existed (for example created under Bazzite) keep their own saved KDE
 # settings, which override the system-wide HoussamOS defaults. This puts the HoussamOS Global
-# Theme, wallpaper, fonts and terminal profile in place for them. It runs again only when
-# LOOK_VERSION is raised (2 = the dark glass redesign), so after that the user's own changes
-# are left alone.
+# Theme, wallpaper, icons, fonts and terminal profile in place for them. It runs again only when
+# LOOK_VERSION is raised (3 = v2 Liquid Glass icons + Tela-dark fallback), so after that the
+# user's own changes are left alone.
 
-LOOK_VERSION=2
+LOOK_VERSION=3
 config="${XDG_CONFIG_HOME:-$HOME/.config}"
 marker="$config/houssamos-look-version"
 
@@ -21,6 +21,7 @@ done
 
 plasma-apply-lookandfeel --apply org.houssamos.glass.desktop
 plasma-apply-wallpaperimage /usr/share/wallpapers/HoussamOS
+kwriteconfig6 --file kdeglobals --group Icons --key Theme HoussamOS-LiquidGlass
 kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image \
     --group General --key Image "file:///usr/share/wallpapers/HoussamOS/"
 kwriteconfig6 --file konsolerc --group "Desktop Entry" --key DefaultProfile HoussamOS.profile

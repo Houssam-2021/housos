@@ -5,7 +5,7 @@ widgetStyle=Darkly
 ColorScheme=HoussamOSDark
 
 [kdeglobals][Icons]
-Theme=Tela-blue-dark
+Theme=HoussamOS-LiquidGlass
 
 [plasmarc][Theme]
 name=houssamos-glass

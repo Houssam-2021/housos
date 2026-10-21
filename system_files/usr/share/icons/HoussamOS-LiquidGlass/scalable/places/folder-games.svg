@@ -1,50 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-<defs>
-  <radialGradient id="gs" cx="50%" cy="50%" r="50%">
-    <stop offset="0" stop-color="#16324a" stop-opacity="0.30"/>
-    <stop offset="0.62" stop-color="#16324a" stop-opacity="0.08"/>
-    <stop offset="1" stop-color="#16324a" stop-opacity="0"/>
-  </radialGradient>
-  <linearGradient id="gb" x1="0.08" y1="0" x2="0.92" y2="1">
-    <stop offset="0" stop-color="#ffffff" stop-opacity="0.78"/>
-    <stop offset="0.38" stop-color="#f4f8fc" stop-opacity="0.34"/>
-    <stop offset="0.72" stop-color="#5C78E8" stop-opacity="0.62"/>
-    <stop offset="1" stop-color="#5C78E8" stop-opacity="0.90"/>
-  </linearGradient>
-  <linearGradient id="gr" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0" stop-color="#ffffff" stop-opacity="0.98"/>
-    <stop offset="0.22" stop-color="#9adfff" stop-opacity="0.95"/>
-    <stop offset="0.48" stop-color="#ffffff" stop-opacity="0.16"/>
-    <stop offset="0.72" stop-color="#ffc2a4" stop-opacity="0.92"/>
-    <stop offset="1" stop-color="#ffffff" stop-opacity="0.98"/>
-  </linearGradient>
-  <radialGradient id="gc" cx="32%" cy="18%" r="68%">
-    <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
-    <stop offset="0.42" stop-color="#ffffff" stop-opacity="0.18"/>
-    <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
-  </radialGradient>
-  <radialGradient id="gp" cx="58%" cy="108%" r="78%">
-    <stop offset="0" stop-color="#5C78E8" stop-opacity="0.95"/>
-    <stop offset="0.42" stop-color="#5C78E8" stop-opacity="0.38"/>
-    <stop offset="1" stop-color="#5C78E8" stop-opacity="0"/>
-  </radialGradient>
-  <filter id="sf" x="-50%" y="-50%" width="200%" height="200%">
-    <feGaussianBlur stdDeviation="9"/>
-  </filter>
-  <clipPath id="cp"><path d="M46 116 V80 C46 64 58 52 76 52 H128 C140 52 148 58 156 74 L166 100 H202 C220 100 232 112 232 130 V190 C232 208 218 220 200 220 H78 C60 220 46 208 46 190 Z"/></clipPath>
-</defs>
-<ellipse cx="128" cy="238" rx="84" ry="14" fill="url(#gs)"/>
-<g transform="translate(3.5 5)" opacity="0.42"><path d="M46 116 V80 C46 64 58 52 76 52 H128 C140 52 148 58 156 74 L166 100 H202 C220 100 232 112 232 130 V190 C232 208 218 220 200 220 H78 C60 220 46 208 46 190 Z" fill="#e7a07a"/></g>
-<g transform="translate(-2.5 -2)" opacity="0.32"><path d="M46 116 V80 C46 64 58 52 76 52 H128 C140 52 148 58 156 74 L166 100 H202 C220 100 232 112 232 130 V190 C232 208 218 220 200 220 H78 C60 220 46 208 46 190 Z" fill="#8fd4ff"/></g>
-<path d="M46 116 V80 C46 64 58 52 76 52 H128 C140 52 148 58 156 74 L166 100 H202 C220 100 232 112 232 130 V190 C232 208 218 220 200 220 H78 C60 220 46 208 46 190 Z" fill="url(#gb)"/>
-<g clip-path="url(#cp)">
-  <ellipse cx="128" cy="214" rx="132" ry="86" fill="url(#gp)"/>
-  <ellipse cx="96" cy="70" rx="100" ry="58" fill="url(#gc)"/>
-  <ellipse cx="86" cy="168" rx="78" ry="42" fill="#d7f1ff" opacity="0.55" filter="url(#sf)"/>
-  <ellipse cx="176" cy="188" rx="70" ry="40" fill="#ffd0b8" opacity="0.40" filter="url(#sf)"/>
-  <path d="M80 66 H122" fill="none" stroke="#ffffff" stroke-opacity="0.9" stroke-width="3.4" stroke-linecap="round"/><path d="M168 108 H214" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="2.6" stroke-linecap="round"/>
-</g>
-<path d="M46 116 V80 C46 64 58 52 76 52 H128 C140 52 148 58 156 74 L166 100 H202 C220 100 232 112 232 130 V190 C232 208 218 220 200 220 H78 C60 220 46 208 46 190 Z" fill="none" stroke="url(#gr)" stroke-width="3.4" stroke-linejoin="round"/>
+  <defs>
+    <linearGradient id="tab_folder-games" x1="50%" y1="10%" x2="50%" y2="85%">
+      <stop offset="0%" stop-color="#38A1FF"/>
+      <stop offset="100%" stop-color="#1463D6"/>
+    </linearGradient>
+    <linearGradient id="front_folder-games" x1="50%" y1="25%" x2="50%" y2="98%">
+      <stop offset="0%" stop-color="#8CE0FF"/>
+      <stop offset="35%" stop-color="#58BFFF"/>
+      <stop offset="82%" stop-color="#2693F8"/>
+      <stop offset="100%" stop-color="#1577E6"/>
+    </linearGradient>
+    <radialGradient id="glow_folder-games" cx="50%" cy="95%" r="58%">
+      <stop offset="0%" stop-color="#B8F2FF" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#58BFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim_folder-games" x1="15%" y1="25%" x2="85%" y2="95%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#BAE6FD" stop-opacity="0.75"/>
+    </linearGradient>
+    <linearGradient id="folder_badge" x1="50%" y1="20%" x2="50%" y2="90%">
+      <stop offset="0%" stop-color="#09479E" stop-opacity="0.78"/>
+      <stop offset="100%" stop-color="#063275" stop-opacity="0.92"/>
+    </linearGradient>
+  </defs>
 
-<g transform="translate(128.0 164.0) scale(3.35) translate(-12 -12)"><g fill="#0e2744" opacity="0.30" transform="translate(0.16 0.55)"><path d="M3.2 9.2 H20.8 A3.2 3.2 0 0 1 24 12.4 V15 A3.2 3.2 0 0 1 20.8 18.2 H3.2 A3.2 3.2 0 0 1 0 15 V12.4 A3.2 3.2 0 0 1 3.2 9.2 Z M6.2 11.3 H7.7 V12.8 H9.3 V14.3 H7.7 V15.8 H6.2 V14.3 H4.6 V12.8 H6.2 Z M16.2 12.2 A1.15 1.15 0 1 0 16.21 12.2 Z M19.1 14.3 A1.15 1.15 0 1 0 19.11 14.3 Z" fill-rule="evenodd"/></g><g fill="#7fd4ff" opacity="0.55" transform="translate(-0.22 -0.16)"><path d="M3.2 9.2 H20.8 A3.2 3.2 0 0 1 24 12.4 V15 A3.2 3.2 0 0 1 20.8 18.2 H3.2 A3.2 3.2 0 0 1 0 15 V12.4 A3.2 3.2 0 0 1 3.2 9.2 Z M6.2 11.3 H7.7 V12.8 H9.3 V14.3 H7.7 V15.8 H6.2 V14.3 H4.6 V12.8 H6.2 Z M16.2 12.2 A1.15 1.15 0 1 0 16.21 12.2 Z M19.1 14.3 A1.15 1.15 0 1 0 19.11 14.3 Z" fill-rule="evenodd"/></g><g fill="#ffb089" opacity="0.40" transform="translate(0.24 0.18)"><path d="M3.2 9.2 H20.8 A3.2 3.2 0 0 1 24 12.4 V15 A3.2 3.2 0 0 1 20.8 18.2 H3.2 A3.2 3.2 0 0 1 0 15 V12.4 A3.2 3.2 0 0 1 3.2 9.2 Z M6.2 11.3 H7.7 V12.8 H9.3 V14.3 H7.7 V15.8 H6.2 V14.3 H4.6 V12.8 H6.2 Z M16.2 12.2 A1.15 1.15 0 1 0 16.21 12.2 Z M19.1 14.3 A1.15 1.15 0 1 0 19.11 14.3 Z" fill-rule="evenodd"/></g><g fill="#ffffff" transform="translate(0 0)"><path d="M3.2 9.2 H20.8 A3.2 3.2 0 0 1 24 12.4 V15 A3.2 3.2 0 0 1 20.8 18.2 H3.2 A3.2 3.2 0 0 1 0 15 V12.4 A3.2 3.2 0 0 1 3.2 9.2 Z M6.2 11.3 H7.7 V12.8 H9.3 V14.3 H7.7 V15.8 H6.2 V14.3 H4.6 V12.8 H6.2 Z M16.2 12.2 A1.15 1.15 0 1 0 16.21 12.2 Z M19.1 14.3 A1.15 1.15 0 1 0 19.11 14.3 Z" fill-rule="evenodd"/></g></g>
+  <rect x="20" y="64" width="216" height="156" rx="28" fill="#061A38" fill-opacity="0.22"/>
+  <rect x="24" y="60" width="208" height="156" rx="26" fill="#061A38" fill-opacity="0.16"/>
+
+  <path d="M 24,68 C 24,52 36,40 52,40 L 94,40 C 106,40 113,45 120,54 L 128,64 L 204,64 C 220,64 232,76 232,92 L 232,186 C 232,202 220,214 204,214 L 52,214 C 36,214 24,202 24,186 Z"
+        fill="url(#tab_folder-games)" stroke="#7DD3FC" stroke-width="1.5"/>
+
+  <rect x="38" y="70" width="180" height="44" rx="12" fill="#FFFFFF" fill-opacity="0.90"/>
+
+  <rect x="22" y="82" width="212" height="132" rx="26" fill="url(#front_folder-games)"/>
+  <rect x="22" y="82" width="212" height="132" rx="26" fill="url(#glow_folder-games)"/>
+
+  <line x1="42" y1="92" x2="214" y2="92" stroke="#FFFFFF" stroke-width="2.5" stroke-opacity="0.72" stroke-linecap="round"/>
+  <rect x="22" y="82" width="212" height="132" rx="26" fill="none" stroke="url(#rim_folder-games)" stroke-width="2.4"/>
+
+  <g transform="translate(0, 2)" opacity="0.50">
+    <rect x="98" y="134" width="60" height="36" rx="16" fill="none" stroke="#FFFFFF" stroke-width="7"/>
+           <line x1="114" y1="146" x2="114" y2="158" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round"/>
+           <line x1="108" y1="152" x2="120" y2="152" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round"/>
+           <circle cx="142" cy="148" r="4" fill="#FFFFFF"/>
+           <circle cx="148" cy="156" r="4" fill="#FFFFFF"/>
+  </g>
+  <rect x="98" y="134" width="60" height="36" rx="16" fill="none" stroke="url(#folder_badge)" stroke-width="7"/>
+           <line x1="114" y1="146" x2="114" y2="158" stroke="url(#folder_badge)" stroke-width="5.5" stroke-linecap="round"/>
+           <line x1="108" y1="152" x2="120" y2="152" stroke="url(#folder_badge)" stroke-width="5.5" stroke-linecap="round"/>
+           <circle cx="142" cy="148" r="4" fill="url(#folder_badge)"/>
+           <circle cx="148" cy="156" r="4" fill="url(#folder_badge)"/>
 </svg>

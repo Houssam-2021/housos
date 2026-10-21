@@ -69,23 +69,28 @@ ln -sf houssamos.jxl /usr/share/backgrounds/default.jxl
 ln -sf houssamos.jxl /usr/share/backgrounds/default-dark.jxl
 
 # Design packages: Inter and JetBrains Mono fonts (Fedora); the Darkly app style and window
-# decoration, Bibata cursors and Tela icons (Terra, which Bazzite ships but keeps switched off)
+# decoration, Bibata cursors and Tela-dark icons (Terra, which Bazzite ships but keeps switched off)
 dnf5 install -y rsms-inter-fonts jetbrains-mono-fonts-all
 dnf5 install -y --enablerepo=terra darkly bibata-cursor-theme tela-icon-theme
+if command -v gtk-update-icon-cache > /dev/null; then
+    for theme in /usr/share/icons/*/; do
+        [ -f "${theme}index.theme" ] && gtk-update-icon-cache -qf "$theme" || true
+    done
+fi
 
 # System-wide KDE defaults. Accounts keep their own saved choices; houssamos-user-setup brings
 # accounts created before HoussamOS up to date once.
 kset() { kwriteconfig6 --file "/etc/xdg/$1" "${@:2}"; }
 
 # HoussamOS Global Theme: glass Plasma theme (dock, top bar, menus with live blur), HoussamOS
-# Dark colours, Tela icons, Bibata cursor, Darkly style and title bars, dark login splash.
-# The panel layout is set per user by the scripts in
+# Dark colours, HoussamOS-LiquidGlass icons (inheriting Tela-dark), Bibata cursor, Darkly style
+# and title bars, dark login splash. The panel layout is set per user by the scripts in
 # /usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/
 chmod 755 /usr/libexec/houssamos-user-setup
 kset kdeglobals --group KDE --key LookAndFeelPackage org.houssamos.glass.desktop
 kset kdeglobals --group KDE --key widgetStyle Darkly
 kset kdeglobals --group General --key ColorScheme HoussamOSDark
-kset kdeglobals --group Icons --key Theme Tela-blue-dark
+kset kdeglobals --group Icons --key Theme HoussamOS-LiquidGlass
 kset plasmarc --group Theme --key name houssamos-glass
 kset kcminputrc --group Mouse --key cursorTheme Bibata-Modern-Classic
 kset ksplashrc --group KSplash --key Engine KSplashQML
@@ -107,10 +112,16 @@ kset kdeglobals --group General --key smallestReadableFont "Inter,8,-1,5,400,0,0
 kset kdeglobals --group General --key fixed "JetBrains Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"
 kset kdeglobals --group WM --key activeFont "Inter,10,-1,5,600,0,0,0,0,0,0,0,0,0,0,1"
 
-# Bazzite's welcome app and announcement pop-ups don't start on their own
+# Bazzite's welcome app and announcement pop-ups don't start on their own or pin to the dock
 rm -f /etc/skel/.config/autostart/bazzite-portal.desktop
 if [ -f /etc/xdg/autostart/bazzite-announcement.desktop ]; then
     sed -i 's@^\[Desktop Entry\]@[Desktop Entry]\nHidden=true@' /etc/xdg/autostart/bazzite-announcement.desktop
+fi
+if [ -f /usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/bazzite-pins.js ]; then
+    sed -i -e 's/applications:bazzite-portal\.desktop,//g' \
+           -e 's/,applications:bazzite-portal\.desktop//g' \
+           -e 's/applications:bazzite-portal\.desktop//g' \
+        /usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/bazzite-pins.js
 fi
 
 # Bazzite's image may carry its own /etc/hostname; new installs should be called houssamos
@@ -118,7 +129,7 @@ if [ -f /etc/hostname ]; then
     echo "houssamos" > /etc/hostname
 fi
 
-# The Liquid Glass icons (branding/import_icons.py) stay installed as an option in System Settings.
+# The v2 Liquid Glass icons (branding/make_icons.py) are the default and inherit Tela-dark.
 
 # Glass terminal: Konsole (Bazzite's KDE terminal) opens with the HoussamOS profile, dark glass
 # with live blur of what is behind it, JetBrains Mono, and without the menu bar and toolbars.

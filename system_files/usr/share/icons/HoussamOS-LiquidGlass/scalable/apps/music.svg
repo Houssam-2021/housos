@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <clipPath id="clip_music">
+      <path d="M 128,22 C 198,22 234,58 234,128 C 234,198 198,234 128,234 C 58,234 22,198 22,128 C 22,58 58,22 128,22 Z"/>
+    </clipPath>
+
+    <linearGradient id="bg_music" x1="16%" y1="6%" x2="84%" y2="94%">
+      <stop offset="0%" stop-color="#FF5D8F" stop-opacity="0.98"/>
+      <stop offset="48%" stop-color="#F72585" stop-opacity="0.96"/>
+      <stop offset="100%" stop-color="#9B0650" stop-opacity="0.99"/>
+    </linearGradient>
+
+    <radialGradient id="top_light_music" cx="26%" cy="14%" r="68%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.50"/>
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="caustic_music" cx="68%" cy="92%" r="60%">
+      <stop offset="0%" stop-color="#FFACC5" stop-opacity="0.72"/>
+      <stop offset="55%" stop-color="#FFACC5" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#FFACC5" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="rim_outer_music" x1="12%" y1="4%" x2="88%" y2="96%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="28%" stop-color="#E0F2FE" stop-opacity="0.58"/>
+      <stop offset="62%" stop-color="#FFFFFF" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#FFACC5" stop-opacity="0.80"/>
+    </linearGradient>
+
+    <linearGradient id="rim_inner_music" x1="85%" y1="92%" x2="15%" y2="8%">
+      <stop offset="0%" stop-color="#FFACC5" stop-opacity="0.55"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.50"/>
+    </linearGradient>
+
+    <linearGradient id="glass_white_music" x1="22%" y1="10%" x2="78%" y2="90%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1"/>
+      <stop offset="58%" stop-color="#F1F5F9" stop-opacity="0.96"/>
+      <stop offset="100%" stop-color="#CBD5E1" stop-opacity="0.90"/>
+    </linearGradient>
+
+    <linearGradient id="glass_sub_music" x1="20%" y1="10%" x2="80%" y2="92%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.84"/>
+      <stop offset="100%" stop-color="#CBD5E1" stop-opacity="0.52"/>
+    </linearGradient>
+
+    <filter id="bevel3d_music" x="-22%" y="-22%" width="144%" height="144%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#020617" flood-opacity="0.40" result="drop1"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#020617" flood-opacity="0.26" in="SourceGraphic" result="drop2"/>
+      <feMerge result="shadows">
+        <feMergeNode in="drop1"/>
+        <feMergeNode in="drop2"/>
+      </feMerge>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="blur_alpha"/>
+      <feSpecularLighting in="blur_alpha" surfaceScale="5" specularConstant="0.95" specularExponent="28" lighting-color="#FFFFFF" result="spec_raw">
+        <fePointLight x="68" y="42" z="165"/>
+      </feSpecularLighting>
+      <feComposite in="spec_raw" in2="SourceAlpha" operator="in" result="spec_masked"/>
+      <feMerge>
+        <feMergeNode in="shadows"/>
+        <feMergeNode in="SourceGraphic"/>
+        <feMergeNode in="spec_masked"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <path d="M 128,29 C 198,29 234,65 234,135 C 234,205 198,241 128,241 C 58,241 22,205 22,135 C 22,65 58,29 128,29 Z" fill="#020617" fill-opacity="0.28"/>
+  <path d="M 128,22 C 198,22 234,58 234,128 C 234,198 198,234 128,234 C 58,234 22,198 22,128 C 22,58 58,22 128,22 Z" fill="url(#bg_music)"/>
+
+  <g clip-path="url(#clip_music)">
+    <circle cx="158" cy="222" r="128" fill="url(#caustic_music)"/>
+    <circle cx="76" cy="48" r="142" fill="url(#top_light_music)"/>
+    <path d="M 16,20 L 240,20 L 240,96 C 186,70 86,86 16,120 Z" fill="#FFFFFF" fill-opacity="0.10"/>
+    <g filter="url(#bevel3d_music)">
+      
+  <path d="M 102,78 L 178,64 L 178,92 L 102,106 Z" fill="url(#glass_white_music)"/>
+  <rect x="102" y="82" width="13" height="82" rx="6" fill="url(#glass_white_music)"/>
+  <rect x="165" y="68" width="13" height="82" rx="6" fill="url(#glass_white_music)"/>
+  <ellipse cx="89" cy="166" rx="22" ry="16" transform="rotate(-16 89 166)" fill="url(#glass_white_music)"/>
+  <ellipse cx="152" cy="152" rx="22" ry="16" transform="rotate(-16 152 152)" fill="url(#glass_white_music)"/>
+
+    </g>
+  </g>
+
+  <path d="M 128,25 C 196,25 231,60 231,128 C 231,196 196,231 128,231 C 60,231 25,196 25,128 C 25,60 60,25 128,25 Z" fill="none" stroke="url(#rim_inner_music)" stroke-width="1.5"/>
+  <path d="M 128,22 C 198,22 234,58 234,128 C 234,198 198,234 128,234 C 58,234 22,198 22,128 C 22,58 58,22 128,22 Z" fill="none" stroke="url(#rim_outer_music)" stroke-width="2.2"/>
+</svg>

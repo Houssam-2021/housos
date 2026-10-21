@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="tab_folder-pictures" x1="50%" y1="10%" x2="50%" y2="85%">
+      <stop offset="0%" stop-color="#38A1FF"/>
+      <stop offset="100%" stop-color="#1463D6"/>
+    </linearGradient>
+    <linearGradient id="front_folder-pictures" x1="50%" y1="25%" x2="50%" y2="98%">
+      <stop offset="0%" stop-color="#8CE0FF"/>
+      <stop offset="35%" stop-color="#58BFFF"/>
+      <stop offset="82%" stop-color="#2693F8"/>
+      <stop offset="100%" stop-color="#1577E6"/>
+    </linearGradient>
+    <radialGradient id="glow_folder-pictures" cx="50%" cy="95%" r="58%">
+      <stop offset="0%" stop-color="#B8F2FF" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#58BFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim_folder-pictures" x1="15%" y1="25%" x2="85%" y2="95%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#BAE6FD" stop-opacity="0.75"/>
+    </linearGradient>
+    <linearGradient id="folder_badge" x1="50%" y1="20%" x2="50%" y2="90%">
+      <stop offset="0%" stop-color="#09479E" stop-opacity="0.78"/>
+      <stop offset="100%" stop-color="#063275" stop-opacity="0.92"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="20" y="64" width="216" height="156" rx="28" fill="#061A38" fill-opacity="0.22"/>
+  <rect x="24" y="60" width="208" height="156" rx="26" fill="#061A38" fill-opacity="0.16"/>
+
+  <path d="M 24,68 C 24,52 36,40 52,40 L 94,40 C 106,40 113,45 120,54 L 128,64 L 204,64 C 220,64 232,76 232,92 L 232,186 C 232,202 220,214 204,214 L 52,214 C 36,214 24,202 24,186 Z"
+        fill="url(#tab_folder-pictures)" stroke="#7DD3FC" stroke-width="1.5"/>
+
+  <rect x="38" y="70" width="180" height="44" rx="12" fill="#FFFFFF" fill-opacity="0.90"/>
+
+  <rect x="22" y="82" width="212" height="132" rx="26" fill="url(#front_folder-pictures)"/>
+  <rect x="22" y="82" width="212" height="132" rx="26" fill="url(#glow_folder-pictures)"/>
+
+  <line x1="42" y1="92" x2="214" y2="92" stroke="#FFFFFF" stroke-width="2.5" stroke-opacity="0.72" stroke-linecap="round"/>
+  <rect x="22" y="82" width="212" height="132" rx="26" fill="none" stroke="url(#rim_folder-pictures)" stroke-width="2.4"/>
+
+  <g transform="translate(0, 2)" opacity="0.50">
+    <rect x="98" y="124" width="60" height="52" rx="8" fill="none" stroke="#FFFFFF" stroke-width="7"/>
+           <circle cx="114" cy="140" r="5" fill="#FFFFFF"/>
+           <path d="M 102,170 L 122,150 L 136,162 L 146,152 L 154,170" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <rect x="98" y="124" width="60" height="52" rx="8" fill="none" stroke="url(#folder_badge)" stroke-width="7"/>
+           <circle cx="114" cy="140" r="5" fill="url(#folder_badge)"/>
+           <path d="M 102,170 L 122,150 L 136,162 L 146,152 L 154,170" fill="none" stroke="url(#folder_badge)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

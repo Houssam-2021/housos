@@ -29,7 +29,9 @@ Built on **Bazzite** (Fedora Atomic / bootc, KDE Plasma 6) with the Universal Bl
 | `branding/make_theme.py` | Plasma theme `houssamos-glass` (vector SVG frames + blur masks) and colour schemes `HoussamOSDark` / `HoussamOS`; **one PALETTE drives all colours** |
 | `branding/make_branding.py` | boot animation frames (Plymouth) from `src/boot-animation.mp4`, H/HOS icons, wordmark, wallpaper package, installer art, Global Theme previews, startup sound. Run it after the two above; then `git checkout` `startup.oga` if nothing changed (ffmpeg output differs every run) |
 | `branding/houssamos.script.in` | Plymouth script template (frames loaded lazily, re-centred every refresh) |
-| `branding/import_icons.py` | imports the Grok "Liquid Glass" icon zip (untrusted: validates SVGs, applies fixes) |
+| `branding/make_icons.py` | generates the v2 Studio 3D `HoussamOS-LiquidGlass` icon theme (`Inherits=Tela-dark,breeze-dark,breeze,hicolor`) into `system_files/usr/share/icons/HoussamOS-LiquidGlass` |
+| `branding/LiquidGlassClock.qml` | KDE Plasma 6 QML lock screen clock (`ColumnLayout` + `MultiEffect` + `Canvas` 3D tubular glass numerals) |
+| `branding/import_icons.py` | legacy importer for the earlier Grok "Liquid Glass" icon zip |
 | `branding/src/` | Houssam's own art: `boot-animation.mp4`, `logo-wordmark.png`; plus generated wallpapers and the icon zip |
 | `.github/workflows/build.yml` | matrix of the two images; cosign signing is skipped until a `SIGNING_SECRET` repo secret exists |
 | `.github/workflows/build-disk.yml` | ISOs with bootc-image-builder (run directly, not the deprecated action). Triggers: after a push-triggered image build, on pushes to `disk_config/**` or itself, or manually. Swaps HoussamOS pictures into the ISO's `install.img` (falls back to the unbranded ISO with a warning). Failures are copied into public annotations |
@@ -41,10 +43,10 @@ KDE pieces in `system_files/`:
 - Layout scripts `usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/houssamos-layout*.js`:
   top bar (H menu, clock, tray) + floating centred dock that fits its apps. **Plasma runs each script
   once per user, per filename**: new behaviour for existing desktops needs a new file name
-  (that is why `houssamos-layout-2.js` exists).
+  (`houssamos-layout-2.js` resizes panels; `houssamos-layout-3.js` removes Bazzite Portal from the dock).
 - `usr/libexec/houssamos-user-setup` + `etc/xdg/autostart/houssamos-user-setup.desktop`: applies the
   look once to accounts that existed before (their saved KDE settings override `/etc/xdg`). Raise
-  `LOOK_VERSION` (now 2) to re-apply after a design change.
+  `LOOK_VERSION` (now 3) to re-apply after a design change.
 - Terminal: `usr/share/ublue-os/motd/template.md` (ASCII logo banner), `usr/share/houssamos/fastfetch.jsonc`
   + aliases in `etc/profile.d` and fish `vendor_conf.d`, Konsole profile/colour scheme `HoussamOS`.
 - Icons: H (small) / HOS (large) in hicolor; build.sh replaces Bazzite/Fedora `distributor-logo`,
@@ -59,12 +61,16 @@ boot animation and video:
 - Aurora wallpapers (layered glowing waves; dark default, light variant in the same package)
 - Colours: HoussamOS Dark; accent `#4C8DFF`, violet `#8B6CFF`
 - Inter (UI) and JetBrains Mono (terminal) from Fedora; Darkly app style + window decoration,
-  Bibata-Modern-Classic cursor, Tela-blue-dark icons from **Terra** (`dnf5 install --enablerepo=terra`)
+  Bibata-Modern-Classic cursor, `HoussamOS-LiquidGlass` v2 3D icons as default with `Tela-dark`
+  fallback (`Inherits=Tela-dark,breeze-dark,breeze,hicolor`) from **Terra** (`dnf5 install --enablerepo=terra`)
 - Magic lamp minimise, stronger blur; dark login splash; dark glass Konsole
 - Boot animation stays Houssam's white video (Plymouth script theme)
-- Grok's Liquid Glass icons stay installed as an option, not the default
 
 ## Lessons learned (avoid repeating these)
+
+- **Terra's `tela-icon-theme` only installs `Tela`, `Tela-light` and `Tela-dark`** (`install.sh` with no
+  colour argument installs only the "standard" variant). `Tela-blue-dark` does not exist and causes
+  missing/blank icons (`System Settings`, `Konsole`). Always use `Tela-dark`.
 
 - **The Bash tool eats backslashes** in heredocs and inline Python (`\\` becomes `\`, `\n` can become
   a real newline). For text with backslashes use the Write/Edit tools, or `chr(92)` in Python.
@@ -91,24 +97,29 @@ boot animation and video:
 ### Done
 - Image + ISO pipeline working; two images (normal, NVIDIA); daily builds; updates verified in a VM
 - Installs and boots in VMware; the VM follows `ghcr.io/houssam-2021/houssamos:latest`
-- Seen working on screen: boot animation, HoussamOS name, top bar + floating dock layout, login wallpaper
+- Seen working on screen: boot animation, HoussamOS name, automatic `houssamos` hostname, Aurora dark
+  wallpaper, `64px` floating dark-glass dock, `30px` frosted top bar, `HoussamOSDark` menu colours,
+  login wallpaper
 - Installer: HoussamOS artwork in the sidebar, language/keyboard screens
 - Terminal: ASCII logo banner, fastfetch logo, glass Konsole
-- Bazzite Portal/announcements no longer autostart; new installs named `houssamos`
-- Full redesign committed and pushed (52149ea)
+- Bazzite Portal/announcements no longer autostart; new installs (and upgraded VM) named `houssamos`
+- Full redesign committed and verified in VM (52149ea)
+- Replaced non-existent `Tela-blue-dark` with `HoussamOS-LiquidGlass` v2 3D icons (`branding/make_icons.py`,
+  `Inherits=Tela-dark,breeze-dark,breeze,hicolor`), removed Bazzite Portal from `bazzite-pins.js` and
+  existing docks (`houssamos-layout-3.js`), raised `LOOK_VERSION` to 3, and added the KDE Plasma 6 QML
+  lock screen clock (`branding/LiquidGlassClock.qml`)
 
 ### Built but not yet seen on screen
-- The redesign (52149ea). Both images built successfully on 2026-10-21 (Terra packages, fonts and
-  initramfs check all passed); nobody has looked at it on screen yet.
-- Houssam has not updated the VM since the Liquid Glass icon build, so the centred boot animation,
-  dark splash, Global Theme and user setup are all unverified.
+- The v2 `HoussamOS-LiquidGlass` icons + `Tela-dark` fallback (`LOOK_VERSION=3`) and Bazzite Portal
+  dock removal (`houssamos-layout-3.js`).
 
 ### To do, in order
-1. Houssam updates the VM (`sudo bootc upgrade`, `sudo hostnamectl set-hostname houssamos`, restart)
-   and sends photos; fix what looks wrong in the redesign.
-2. Design leftovers: Bazzite names in `ujust` commands, MOTD tips and Bazzite Portal (still pinned in
-   the dock via `bazzite-pins.js`); SDDM login theme; lock screen clock (Kimi's design was made for
-   Hyprland; Houssam said "not now"); check the H menu icon looks right on the dark bar.
+1. Wait for the current GitHub image build to finish, then run `sudo bootc upgrade` and restart in the
+   VM to verify the v2 Liquid Glass icons, `Tela-dark` fallbacks (`System Settings`, `Konsole`, tray
+   icons) and Bazzite Portal dock removal.
+2. Design leftovers: Bazzite names in `ujust` commands and MOTD tips; SDDM login theme; wire and test
+   the KDE Plasma 6 lock screen clock (`branding/LiquidGlassClock.qml`) in the VM; check the H menu
+   icon on the dark bar.
 3. Real hardware test with the `houssamos-nvidia` ISO (16 GB+ USB stick; 256 GB SSD ideally inside the PC).
 4. Phase 3, the features that make HoussamOS different: undo timeline (snapshots + timeline app),
    gaming extras ("Will my games work?" checker, automatic game mode), privacy report, offline AI

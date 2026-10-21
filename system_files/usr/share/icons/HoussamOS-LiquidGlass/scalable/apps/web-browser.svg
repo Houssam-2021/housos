@@ -1,50 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-<defs>
-  <radialGradient id="gs" cx="50%" cy="50%" r="50%">
-    <stop offset="0" stop-color="#16324a" stop-opacity="0.30"/>
-    <stop offset="0.62" stop-color="#16324a" stop-opacity="0.08"/>
-    <stop offset="1" stop-color="#16324a" stop-opacity="0"/>
-  </radialGradient>
-  <linearGradient id="gb" x1="0.08" y1="0" x2="0.92" y2="1">
-    <stop offset="0" stop-color="#ffffff" stop-opacity="0.78"/>
-    <stop offset="0.38" stop-color="#f4f8fc" stop-opacity="0.34"/>
-    <stop offset="0.72" stop-color="#4C92E4" stop-opacity="0.62"/>
-    <stop offset="1" stop-color="#4C92E4" stop-opacity="0.90"/>
-  </linearGradient>
-  <linearGradient id="gr" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0" stop-color="#ffffff" stop-opacity="0.98"/>
-    <stop offset="0.22" stop-color="#9adfff" stop-opacity="0.95"/>
-    <stop offset="0.48" stop-color="#ffffff" stop-opacity="0.16"/>
-    <stop offset="0.72" stop-color="#ffc2a4" stop-opacity="0.92"/>
-    <stop offset="1" stop-color="#ffffff" stop-opacity="0.98"/>
-  </linearGradient>
-  <radialGradient id="gc" cx="32%" cy="18%" r="68%">
-    <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
-    <stop offset="0.42" stop-color="#ffffff" stop-opacity="0.18"/>
-    <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
-  </radialGradient>
-  <radialGradient id="gp" cx="58%" cy="108%" r="78%">
-    <stop offset="0" stop-color="#4C92E4" stop-opacity="0.95"/>
-    <stop offset="0.42" stop-color="#4C92E4" stop-opacity="0.38"/>
-    <stop offset="1" stop-color="#4C92E4" stop-opacity="0"/>
-  </radialGradient>
-  <filter id="sf" x="-50%" y="-50%" width="200%" height="200%">
-    <feGaussianBlur stdDeviation="9"/>
-  </filter>
-  <clipPath id="cp"><path d="M94 26 H162 A60 60 0 0 1 222 86 V162 A60 60 0 0 1 162 222 H94 A60 60 0 0 1 34 162 V86 A60 60 0 0 1 94 26 Z"/></clipPath>
-</defs>
-<ellipse cx="128" cy="238" rx="84" ry="14" fill="url(#gs)"/>
-<g transform="translate(3.5 5)" opacity="0.42"><path d="M94 26 H162 A60 60 0 0 1 222 86 V162 A60 60 0 0 1 162 222 H94 A60 60 0 0 1 34 162 V86 A60 60 0 0 1 94 26 Z" fill="#e7a07a"/></g>
-<g transform="translate(-2.5 -2)" opacity="0.32"><path d="M94 26 H162 A60 60 0 0 1 222 86 V162 A60 60 0 0 1 162 222 H94 A60 60 0 0 1 34 162 V86 A60 60 0 0 1 94 26 Z" fill="#8fd4ff"/></g>
-<path d="M94 26 H162 A60 60 0 0 1 222 86 V162 A60 60 0 0 1 162 222 H94 A60 60 0 0 1 34 162 V86 A60 60 0 0 1 94 26 Z" fill="url(#gb)"/>
-<g clip-path="url(#cp)">
-  <ellipse cx="128" cy="214" rx="132" ry="86" fill="url(#gp)"/>
-  <ellipse cx="96" cy="70" rx="100" ry="58" fill="url(#gc)"/>
-  <ellipse cx="86" cy="168" rx="78" ry="42" fill="#d7f1ff" opacity="0.55" filter="url(#sf)"/>
-  <ellipse cx="176" cy="188" rx="70" ry="40" fill="#ffd0b8" opacity="0.40" filter="url(#sf)"/>
-  
-</g>
-<path d="M94 26 H162 A60 60 0 0 1 222 86 V162 A60 60 0 0 1 162 222 H94 A60 60 0 0 1 34 162 V86 A60 60 0 0 1 94 26 Z" fill="none" stroke="url(#gr)" stroke-width="3.4" stroke-linejoin="round"/>
+  <defs>
+    <clipPath id="clip_firefox">
+      <path d="M 128,22 C 198,22 234,58 234,128 C 234,198 198,234 128,234 C 58,234 22,198 22,128 C 22,58 58,22 128,22 Z"/>
+    </clipPath>
 
-<g transform="translate(128.0 126.0) scale(5.05) translate(-12 -12)"><g fill="#0e2744" opacity="0.30" transform="translate(0.16 0.55)"><path d="M12 3 A9 9 0 1 0 12.01 3 Z M12 6 A6 6 0 1 1 11.99 6 Z" fill-rule="evenodd"/><rect x="11.1" y="5.4" width="1.8" height="13.2" rx="0.9"/><rect x="5" y="11.1" width="14" height="1.8" rx="0.9"/></g><g fill="#7fd4ff" opacity="0.55" transform="translate(-0.22 -0.16)"><path d="M12 3 A9 9 0 1 0 12.01 3 Z M12 6 A6 6 0 1 1 11.99 6 Z" fill-rule="evenodd"/><rect x="11.1" y="5.4" width="1.8" height="13.2" rx="0.9"/><rect x="5" y="11.1" width="14" height="1.8" rx="0.9"/></g><g fill="#ffb089" opacity="0.40" transform="translate(0.24 0.18)"><path d="M12 3 A9 9 0 1 0 12.01 3 Z M12 6 A6 6 0 1 1 11.99 6 Z" fill-rule="evenodd"/><rect x="11.1" y="5.4" width="1.8" height="13.2" rx="0.9"/><rect x="5" y="11.1" width="14" height="1.8" rx="0.9"/></g><g fill="#ffffff" transform="translate(0 0)"><path d="M12 3 A9 9 0 1 0 12.01 3 Z M12 6 A6 6 0 1 1 11.99 6 Z" fill-rule="evenodd"/><rect x="11.1" y="5.4" width="1.8" height="13.2" rx="0.9"/><rect x="5" y="11.1" width="14" height="1.8" rx="0.9"/></g></g>
+    <linearGradient id="bg_firefox" x1="16%" y1="6%" x2="84%" y2="94%">
+      <stop offset="0%" stop-color="#2E1760" stop-opacity="0.98"/>
+      <stop offset="48%" stop-color="#180B38" stop-opacity="0.96"/>
+      <stop offset="100%" stop-color="#0A041C" stop-opacity="0.99"/>
+    </linearGradient>
+
+    <radialGradient id="top_light_firefox" cx="26%" cy="14%" r="68%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.50"/>
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="caustic_firefox" cx="68%" cy="92%" r="60%">
+      <stop offset="0%" stop-color="#FF6B2B" stop-opacity="0.72"/>
+      <stop offset="55%" stop-color="#FF6B2B" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#FF6B2B" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="rim_outer_firefox" x1="12%" y1="4%" x2="88%" y2="96%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="28%" stop-color="#E0F2FE" stop-opacity="0.58"/>
+      <stop offset="62%" stop-color="#FFFFFF" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#FF6B2B" stop-opacity="0.80"/>
+    </linearGradient>
+
+    <linearGradient id="rim_inner_firefox" x1="85%" y1="92%" x2="15%" y2="8%">
+      <stop offset="0%" stop-color="#FF6B2B" stop-opacity="0.55"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.50"/>
+    </linearGradient>
+
+    <linearGradient id="glass_white_firefox" x1="22%" y1="10%" x2="78%" y2="90%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="1"/>
+      <stop offset="58%" stop-color="#F1F5F9" stop-opacity="0.96"/>
+      <stop offset="100%" stop-color="#CBD5E1" stop-opacity="0.90"/>
+    </linearGradient>
+
+    <linearGradient id="glass_sub_firefox" x1="20%" y1="10%" x2="80%" y2="92%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.84"/>
+      <stop offset="100%" stop-color="#CBD5E1" stop-opacity="0.52"/>
+    </linearGradient>
+
+    <filter id="bevel3d_firefox" x="-22%" y="-22%" width="144%" height="144%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#020617" flood-opacity="0.40" result="drop1"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#020617" flood-opacity="0.26" in="SourceGraphic" result="drop2"/>
+      <feMerge result="shadows">
+        <feMergeNode in="drop1"/>
+        <feMergeNode in="drop2"/>
+      </feMerge>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="blur_alpha"/>
+      <feSpecularLighting in="blur_alpha" surfaceScale="5" specularConstant="0.95" specularExponent="28" lighting-color="#FFFFFF" result="spec_raw">
+        <fePointLight x="68" y="42" z="165"/>
+      </feSpecularLighting>
+      <feComposite in="spec_raw" in2="SourceAlpha" operator="in" result="spec_masked"/>
+      <feMerge>
+        <feMergeNode in="shadows"/>
+        <feMergeNode in="SourceGraphic"/>
+        <feMergeNode in="spec_masked"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <path d="M 128,29 C 198,29 234,65 234,135 C 234,205 198,241 128,241 C 58,241 22,205 22,135 C 22,65 58,29 128,29 Z" fill="#020617" fill-opacity="0.28"/>
+  <path d="M 128,22 C 198,22 234,58 234,128 C 234,198 198,234 128,234 C 58,234 22,198 22,128 C 22,58 58,22 128,22 Z" fill="url(#bg_firefox)"/>
+
+  <g clip-path="url(#clip_firefox)">
+    <circle cx="158" cy="222" r="128" fill="url(#caustic_firefox)"/>
+    <circle cx="76" cy="48" r="142" fill="url(#top_light_firefox)"/>
+    <path d="M 16,20 L 240,20 L 240,96 C 186,70 86,86 16,120 Z" fill="#FFFFFF" fill-opacity="0.10"/>
+    <g filter="url(#bevel3d_firefox)">
+      
+  <defs>
+    <radialGradient id="ff_globe_firefox" cx="38%" cy="32%" r="68%">
+      <stop offset="0%" stop-color="#5CE1E6"/>
+      <stop offset="45%" stop-color="#3B5BDB"/>
+      <stop offset="100%" stop-color="#240046"/>
+    </radialGradient>
+    <linearGradient id="ff_tail_firefox" x1="15%" y1="90%" x2="88%" y2="12%">
+      <stop offset="0%" stop-color="#FF2A6D"/>
+      <stop offset="42%" stop-color="#FF6B1A"/>
+      <stop offset="80%" stop-color="#FFB800"/>
+      <stop offset="100%" stop-color="#FFF3B0"/>
+    </linearGradient>
+    <linearGradient id="ff_crest_firefox" x1="20%" y1="80%" x2="85%" y2="20%">
+      <stop offset="0%" stop-color="#FF5400"/>
+      <stop offset="55%" stop-color="#FF9E00"/>
+      <stop offset="100%" stop-color="#FFEE99"/>
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="132" r="56" fill="url(#ff_globe_firefox)"/>
+  <circle cx="128" cy="132" r="55" fill="none" stroke="#A5F3FC" stroke-width="1.5" stroke-opacity="0.45"/>
+  <path d="M 176,66 C 164,54 146,52 134,58 C 142,64 146,72 146,82 C 135,74 118,74 106,84 C 95,94 94,112 104,124 C 90,118 82,102 86,84 C 66,98 56,124 62,150 C 70,182 102,202 136,198 C 174,194 200,160 196,120 C 194,98 186,78 176,66 Z"
+        fill="url(#ff_tail_firefox)"/>
+  <path d="M 60,126 C 56,162 84,196 126,198 C 168,200 198,166 196,122 C 194,94 178,72 160,64 C 172,82 174,108 162,126 C 148,146 120,152 100,138 C 86,128 82,110 88,94 C 72,102 62,112 60,126 Z"
+        fill="url(#ff_crest_firefox)"/>
+  <path d="M 160,64 C 180,84 186,118 170,146 C 154,174 118,184 90,168 C 118,176 148,162 158,136 C 166,114 162,86 146,72 C 152,68 156,66 160,64 Z"
+        fill="#FFF8D6" fill-opacity="0.65"/>
+
+    </g>
+  </g>
+
+  <path d="M 128,25 C 196,25 231,60 231,128 C 231,196 196,231 128,231 C 60,231 25,196 25,128 C 25,60 60,25 128,25 Z" fill="none" stroke="url(#rim_inner_firefox)" stroke-width="1.5"/>
+  <path d="M 128,22 C 198,22 234,58 234,128 C 234,198 198,234 128,234 C 58,234 22,198 22,128 C 22,58 58,22 128,22 Z" fill="none" stroke="url(#rim_outer_firefox)" stroke-width="2.2"/>
 </svg>
