@@ -245,20 +245,38 @@ if [ ! -f "$lnf_dst/lockscreen/LockScreenUi.qml" ] || \
 fi
 
 # Login screen: KDE's Breeze login theme (copied from the base image, like the lock screen) with
-# the same liquid glass clock, as the default for SDDM. If it ever fails to load, SDDM falls back
-# to its built-in theme, so logging in still works.
+# the same liquid glass clock, as the default for SDDM. Fedora names its copy 01-breeze-fedora, so
+# the theme is found by its contents. If it can't be found or changed, the login screen stays as
+# it is; and if the new theme ever fails to load, SDDM falls back to its built-in one.
+echo "SDDM themes in the base image: $(ls /usr/share/sddm/themes 2> /dev/null | tr '\n' ' ')"
+sddm_src=""
+for theme in /usr/share/sddm/themes/01-breeze-fedora /usr/share/sddm/themes/breeze /usr/share/sddm/themes/*; do
+    if [ -f "$theme/Main.qml" ] && grep -q '^ *Clock *{' "$theme/Main.qml"; then
+        sddm_src="$theme"
+        break
+    fi
+done
 sddm_dst=/usr/share/sddm/themes/houssamos
-cp -a /usr/share/sddm/themes/breeze "$sddm_dst"
-install -Dm644 /ctx/branding/LiquidGlassClock.qml "$sddm_dst/LiquidGlassClock.qml"
-sed -i -e 's/\bClock[[:space:]]*{/LiquidGlassClock {/g' \
-       -e 's|y: (userListComponent\.userList\.y + mainStack\.y)/2 - height/2|y: Math.max(12, (userListComponent.userList.y + mainStack.y)/2 - height/2)|g' \
-    "$sddm_dst/Main.qml"
-sed -i -e 's/^Name=.*/Name=HoussamOS/' -e 's/^Theme-Id=.*/Theme-Id=houssamos/' "$sddm_dst/metadata.desktop"
-mkdir -p /etc/sddm.conf.d
-printf '[Theme]\nCurrent=houssamos\n' > /etc/sddm.conf.d/zz-houssamos.conf
-if ! grep -q 'LiquidGlassClock' "$sddm_dst/Main.qml"; then
-    echo "Login screen clock swap failed"
-    exit 1
+if [ -n "$sddm_src" ]; then
+    rm -rf "$sddm_dst"
+    cp -a "$sddm_src" "$sddm_dst"
+    install -Dm644 /ctx/branding/LiquidGlassClock.qml "$sddm_dst/LiquidGlassClock.qml"
+    sed -i -e 's/\bClock[[:space:]]*{/LiquidGlassClock {/g' \
+           -e 's|y: (userListComponent\.userList\.y + mainStack\.y)/2 - height/2|y: Math.max(12, (userListComponent.userList.y + mainStack.y)/2 - height/2)|g' \
+        "$sddm_dst/Main.qml"
+    if [ -f "$sddm_dst/metadata.desktop" ]; then
+        sed -i -e 's/^Name=.*/Name=HoussamOS/' -e 's/^Theme-Id=.*/Theme-Id=houssamos/' "$sddm_dst/metadata.desktop"
+    fi
+    if grep -q 'LiquidGlassClock' "$sddm_dst/Main.qml"; then
+        mkdir -p /etc/sddm.conf.d
+        printf '[Theme]\nCurrent=houssamos\n' > /etc/sddm.conf.d/zz-houssamos.conf
+        echo "Login screen: HoussamOS theme made from $sddm_src"
+    else
+        echo "WARNING: login screen clock swap failed; keeping the base image's login screen"
+        rm -rf "$sddm_dst"
+    fi
+else
+    echo "WARNING: no Breeze login theme found; keeping the base image's login screen"
 fi
 
 # Glass terminal: Konsole (Bazzite's KDE terminal) opens with the HoussamOS profile, dark glass
