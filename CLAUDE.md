@@ -60,6 +60,12 @@ KDE pieces in `system_files/`:
   the wallpaper, panels and other windows blur and dim, then clear (`contents/shaders/blur_core.frag`,
   animated as a `ShaderUniform`; skipped if the shader can't load). build.sh turns it on and KDE's
   scale/glide/fade/squash/magic lamp off.
+- Control Center widget `usr/share/plasma/plasmoids/org.houssamos.controlcenter` (QML, macOS style): button
+  at the right of the top bar (`houssamos-layout-6.js`); Wi-Fi, Bluetooth, airplane mode, Do Not Disturb,
+  screenshot, settings, brightness and volume sliders, now playing. Each system connection is its own
+  file in `contents/ui/backends/` loaded by a `Loader` (KDE's private plugins: plasma-nm, bluezqt,
+  plasma-pa, powerdevil brightness, mpris, notificationmanager, plasma5support), so one that fails to
+  load only hides its part. Preview the layout on Windows with PySide6 and mock backends.
 - Cursor theme `usr/share/icons/HoussamOS-Cursor` (generated); build.sh links `left_ptr`, `arrow`,
   `top_left_arrow` to `default`.
 - `etc/xdg/plasma-workspace/env/houssamos-caches.sh`: at login, clears KDE's icon/theme/QML caches when
@@ -179,9 +185,10 @@ boot animation and video:
    - Test the lock screen clock safely in a window first with `/usr/libexec/kscreenlocker_greet --testing`,
      and only then test real locking with `Meta+L`.
    - The startup login screen (SDDM) is still KDE's default look; it needs its own HoussamOS theme.
-   - Next asked for: a macOS-style control center with blur (Wi-Fi, Bluetooth, display and sound
-     sliders, now playing) as a Plasma widget in the top bar; an installer (Anaconda) theme like
-     Houssam's reference (glass panel over a purple background).
+   - Control Center widget: committed locally, **not pushed** until Houssam has tested build 094e9c8;
+     never run on real Plasma yet (only previewed with mock backends).
+   - Next asked for: an installer (Anaconda) theme like Houssam's reference (glass panel over a purple
+     background).
 2. Design leftovers: Bazzite names in `ujust` commands and MOTD tips; SDDM login theme; check the H
    menu icon on the dark bar.
 3. Real hardware test with the `houssamos-nvidia` ISO (16 GB+ USB stick; 256 GB SSD ideally inside the PC).

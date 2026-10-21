@@ -1,0 +1,19 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Houssam"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Wi-Fi, Bluetooth, Do Not Disturb, display, sound and music in one glass panel",
+        "Icon": "preferences-system",
+        "Id": "org.houssamos.controlcenter",
+        "License": "GPL-2.0-or-later",
+        "Name": "Control Center",
+        "Version": "1.0",
+        "Website": "https://github.com/Houssam-2021/housos"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
