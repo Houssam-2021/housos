@@ -78,8 +78,8 @@ KDE pieces in `system_files/`:
 
 Houssam found the previous look poor and asked for a full premium redesign keeping only his logo,
 boot animation and video:
-- Glass with live blur: floating 64 px dock (radius 18) like macOS's: frosted white glass (20 %) over
-  the live blur, one seamless piece (`hint-compose-over-border`), light hairline edge, hugging 48 px
+- Glass with live blur: floating 64 px dock (radius 18) like macOS's: frosted white glass (30 %) over
+  the live blur with vibrancy (plasmarc contrast 1.0, saturation 2.0), one seamless piece (`hint-compose-over-border`), light hairline edge, hugging 48 px
   icons; it dodges windows so it never stops floating; 30 px frosted top bar; dark glass for menus/popups/notifications/tooltips; KWin blur via
   theme masks, contrast effect on
 - Dock indicators: a dot under running apps (bright for the app in use, dim when minimized, amber
@@ -107,6 +107,11 @@ boot animation and video:
   `x.frag` on older GL; use `sampler`, `texcoord0`, `modulation`, `fragColor`. Animate uniforms with
   `type: Effect.ShaderUniform, uniform: "name", fragmentShader: id`. **A blur shader applied this way to
   the windows behind drew them black in the VM (2026-10-21); removed. Don't retry without a way to test.**
+- **KWin 6.5's blur applies only contrast and saturation from plasmarc** (`BlurEffect::colorMatrix`);
+  `intensity` is ignored, and contrast below 1 washes the blurred background grey (our old 0.25 made the
+  dock look like flat grey transparency). Brightness has to come from the theme's own fill. Preview glass
+  honestly: keep the wallpaper sharp around it, and behind it blur (PIL GaussianBlur ~28 px for
+  BlurStrength 12), apply saturation then contrast, then the theme's fill.
 - **Plasma frame pieces must be whole pixels**: a stroke in a corner piece pokes half a pixel out, so
   `boundsOnElement` gives 18.5 and Plasma lays the frame out in fractions (seams). Draw outlines as
   filled shapes. For translucent fills use `hint-compose-over-border` (needs `mask-center`): the centre

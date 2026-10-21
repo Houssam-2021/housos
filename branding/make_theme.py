@@ -37,12 +37,13 @@ PALETTE = {
 
 # (radius, glass opacity, edge opacity, content margins top/bottom/left/right)
 SHAPES = {
-    "dock": (18, 0.20, 0.24, (4, 4, 6, 6)),
+    "dock": (18, 0.30, 0.34, (4, 4, 6, 6)),
     "dialog": (14, 0.72, 0.12, (12, 12, 12, 12)),
     "tooltip": (10, 0.86, 0.12, (8, 8, 10, 10)),
 }
 
-# The dock is frosted white glass over the live blur, hugging its icons like macOS's dock. Its
+# The dock is frosted white glass (30 %) over the live blur, hugging its icons like macOS's dock;
+# the lighter look comes from this frost, since KWin's vibrancy (plasmarc) can't brighten. Its
 # fill is drawn as one piece over the whole dock and cut to shape by the mask (compose), because
 # translucent fill split across the frame's nine pieces shows where Plasma joins them.
 DOCK_GLASS = {"tint": (255, 255, 255), "compose": True}
@@ -344,13 +345,15 @@ def main():
     (theme / "metadata.json").write_text(json.dumps({
         "KPlugin": {"Id": THEME_ID, "Name": "HoussamOS Glass",
                     "Description": "Glass with live blur: floating frosted dock, slim top bar, glass menus",
-                    "Authors": [{"Name": "Houssam"}], "License": "CC-BY-SA-4.0", "Version": "2.3",
+                    "Authors": [{"Name": "Houssam"}], "License": "CC-BY-SA-4.0", "Version": "2.4",
                     "Website": "https://github.com/Houssam-2021/housos"},
         "X-Plasma-API-Minimum-Version": "6.0"
     }, indent=4) + "\n", newline="\n")
+    # Behind glass, KWin boosts the colours (vibrancy, as on macOS). Plasma 6.5's KWin applies
+    # only contrast and saturation (intensity is ignored); contrast below 1 washes the blur grey.
     (theme / "plasmarc").write_text(
         "[BlurBehindEffect]\nenabled=true\n\n"
-        "[ContrastEffect]\nenabled=true\ncontrast=0.25\nintensity=0.85\nsaturation=1.6\n\n"
+        "[ContrastEffect]\nenabled=true\ncontrast=1.0\nintensity=1.0\nsaturation=2.0\n\n"
         "[AdaptiveTransparency]\nenabled=false\n", newline="\n")
     (theme / "colors").write_text(colours_text(dark=True), newline="\n")
 
