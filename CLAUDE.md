@@ -112,6 +112,10 @@ boot animation and video:
   dock look like flat grey transparency). Brightness has to come from the theme's own fill. Preview glass
   honestly: keep the wallpaper sharp around it, and behind it blur (PIL GaussianBlur ~28 px for
   BlurStrength 12), apply saturation then contrast, then the theme's fill.
+- **The SDDM theme step broke the image build twice** (b250037, ef382a9; exit 1 in Build Image, logs
+  need a GitHub login). It now finds the Breeze login theme by its `Main.qml` and only warns if it can't
+  make the HoussamOS theme. Whether the theme was made shows in the build log ("Login screen: ...") or
+  on screen; `ls /usr/share/sddm/themes` in the VM tells which themes exist.
 - **Plasma frame pieces must be whole pixels**: a stroke in a corner piece pokes half a pixel out, so
   `boundsOnElement` gives 18.5 and Plasma lays the frame out in fractions (seams). Draw outlines as
   filled shapes. For translucent fills use `hint-compose-over-border` (needs `mask-center`): the centre
