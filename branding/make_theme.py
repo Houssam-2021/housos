@@ -37,19 +37,19 @@ PALETTE = {
 
 # (radius, glass opacity, edge opacity, content margins top/bottom/left/right)
 SHAPES = {
-    "dock": (20, 0.08, 0.16, (6, 6, 10, 10)),
+    "dock": (18, 0.20, 0.24, (4, 4, 6, 6)),
     "dialog": (14, 0.72, 0.12, (12, 12, 12, 12)),
     "tooltip": (10, 0.86, 0.12, (8, 8, 10, 10)),
 }
 
-# The dock is the blur itself: a faint white frost, so it reads as a light pane over dark
-# windows too. It stays one flat colour, because translucent shading split across the frame's
-# nine pieces shows seams where Plasma joins them.
-DOCK_GLASS = {"tint": (255, 255, 255)}
+# The dock is frosted white glass over the live blur, hugging its icons like macOS's dock. Its
+# fill is drawn as one piece over the whole dock and cut to shape by the mask (compose), because
+# translucent fill split across the frame's nine pieces shows where Plasma joins them.
+DOCK_GLASS = {"tint": (255, 255, 255), "compose": True}
 
 # Dock indicators (widgets/tasks.svg): corner size (wide, so the dot between them stays small),
 # the unused glass tile radius, and the space around icons
-TASK_CORNER = 24
+TASK_CORNER = 26
 TASK_RADIUS = 12
 TASK_MARGINS = (3, 5, 4, 4)
 
@@ -65,13 +65,16 @@ class Svg:
         self.parts, self.defs, self.row = [], [], 0
 
     def frame(self, prefix, radius, glass, edge, mask=False, hairline_only_bottom=False,
-              tint=None, glow=0.0, rim=None):
+              tint=None, glow=0.0, rim=None, compose=False):
         """The nine pieces Plasma stretches into a frame of any size.
 
         Corners are quarter circles, edges and centre are rectangles. The 1px light edge sits
         just inside the shape; for the top bar only a hairline at the bottom is drawn.
         tint, glow and rim are for the dock: the glass colour, extra opacity at the very top that
         fades out over the top corners, and the opacity of the top edge (the others use edge).
+        With compose, only the centre carries the fill: Plasma stretches it over the whole frame
+        and cuts it with the mask- frame (hint-compose-over-border); the other pieces hold just
+        the light edge.
         """
         r, w = max(radius, 1), 10
         g = tint or PALETTE["glass"]
@@ -86,6 +89,11 @@ class Svg:
                 f'<stop offset="0" stop-color="{colour}" stop-opacity="{glass + glow:.3f}"/>'
                 f'<stop offset="1" stop-color="{colour}" stop-opacity="{glass:.3f}"/></linearGradient>')
             top_fill = f'fill="url(#{gid})"'
+        centre_fill = fill
+        if compose and not mask:
+            fill = top_fill = 'fill="#000000" fill-opacity="0"'
+            self.parts.append(f'<rect id="{prefix}hint-compose-over-border" x="0" y="{self.row * 40}" '
+                              'width="1" height="1" fill="#000000" fill-opacity="0"/>')
         line = 'fill="#000000" fill-opacity="0"' if mask else rgba(PALETTE["edge"], edge)
         top_line = 'fill="#000000" fill-opacity="0"' if mask else rgba(PALETTE["edge"], rim)
         y0 = self.row * 40
@@ -96,8 +104,7 @@ class Svg:
             top = name.startswith("top")
             pieces.append((name, r, r, f'<path {top_fill if top else fill} d="{sweep_path}"/>' + (
                 "" if mask or hairline_only_bottom or radius <= 1 else
-                f'<path fill="none" stroke="rgb(255,255,255)" stroke-opacity="{rim if top else edge:.3f}" '
-                f'stroke-width="1" d="{arc_line(name, r)}"/>')))
+                f'<path {rgba(PALETTE["edge"], rim if top else edge)} d="{arc_line(name, r)}"/>')))
 
         if radius > 1:
             corner("topleft", r, r, f"M{r},{r} L0,{r} A{r},{r} 0 0 1 {r},0 Z")
@@ -128,10 +135,10 @@ class Svg:
             edge_piece("left", r, w, (0, 0, 1, w))
             edge_piece("right", r, w, (r - 1, 0, 1, w))
             edge_piece("bottom", w, r, (0, r - 1, w, 1))
-        pieces.append(("center", w, w, f'<rect {fill} width="{w}" height="{w}"/>'))
+        pieces.append(("center", w, w, f'<rect {centre_fill} width="{w}" height="{w}"/>'))
 
         for name, pw, ph, body in pieces:
-            self.parts.append(f'<g id="{prefix}{name}" transform="translate({x},{y0})">{body}</g>')
+            self.parts.append(f'<g id="{prefix}{name}" transform="translate({x},{y0 + (2 if compose else 0)})">{body}</g>')
             x += pw + 6
         self.row += 2
 
@@ -202,13 +209,15 @@ class Svg:
 
 
 def arc_line(corner, r):
-    """The light edge along a corner: an arc 0.5px inside the shape's outline."""
-    a = r - 0.5
+    """The light edge along a corner: a 1px ring just inside the outline, filled rather than
+    stroked so it stays inside the corner piece (a stroke pokes half a pixel out, which makes
+    Plasma size the frame in fractions of a pixel and shows seams between the pieces)."""
+    i = r - 1
     return {
-        "topleft": f"M0.5,{r} A{a},{a} 0 0 1 {r},0.5",
-        "topright": f"M0,0.5 A{a},{a} 0 0 1 {r - 0.5},{r}",
-        "bottomleft": f"M{r},{r - 0.5} A{a},{a} 0 0 1 0.5,0",
-        "bottomright": f"M{r - 0.5},0 A{a},{a} 0 0 1 0,{r - 0.5}",
+        "topleft": f"M0,{r} A{r},{r} 0 0 1 {r},0 L{r},1 A{i},{i} 0 0 0 1,{r} Z",
+        "topright": f"M0,0 A{r},{r} 0 0 1 {r},{r} L{i},{r} A{i},{i} 0 0 0 0,1 Z",
+        "bottomleft": f"M{r},{r} A{r},{r} 0 0 1 0,0 L1,0 A{i},{i} 0 0 0 {r},{i} Z",
+        "bottomright": f"M{r},0 A{r},{r} 0 0 1 0,{r} L0,{i} A{i},{i} 0 0 0 {i},0 Z",
     }[corner]
 
 
@@ -335,7 +344,7 @@ def main():
     (theme / "metadata.json").write_text(json.dumps({
         "KPlugin": {"Id": THEME_ID, "Name": "HoussamOS Glass",
                     "Description": "Glass with live blur: floating frosted dock, slim top bar, glass menus",
-                    "Authors": [{"Name": "Houssam"}], "License": "CC-BY-SA-4.0", "Version": "2.2",
+                    "Authors": [{"Name": "Houssam"}], "License": "CC-BY-SA-4.0", "Version": "2.3",
                     "Website": "https://github.com/Houssam-2021/housos"},
         "X-Plasma-API-Minimum-Version": "6.0"
     }, indent=4) + "\n", newline="\n")

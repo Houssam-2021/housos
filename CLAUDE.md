@@ -56,10 +56,13 @@ KDE pieces in `system_files/`:
   `bazzite-logo`, `start-here` icons everywhere with the H.
 - Window animations: KWin effect `usr/share/kwin/effects/houssamos_appzoom` (JavaScript): windows grow
   out of their dock icon (or the middle of the dock when KWin doesn't know the icon yet) and shrink back
-  into it on close/minimize, `OutQuart` (closest to iOS's curve), 520 ms open / 375 ms close. Meanwhile
-  the wallpaper, panels and other windows blur and dim, then clear (`contents/shaders/blur_core.frag`,
-  animated as a `ShaderUniform`; skipped if the shader can't load). build.sh turns it on and KDE's
+  into it on close/minimize, `OutQuart` (closest to iOS's curve), 520 ms open / 375 ms close. While it
+  moves the window is frosted glass (see-through with KWin's blur behind it via
+  `WindowForceBlurRole`; content fades in as it lands). build.sh turns it on and KDE's
   scale/glide/fade/squash/magic lamp off.
+- Login screen (SDDM): build.sh copies the base image's Breeze login theme to
+  `/usr/share/sddm/themes/houssamos`, swaps in `LiquidGlassClock.qml` like the lock screen, and makes it
+  the default (`/etc/sddm.conf.d/zz-houssamos.conf`). A broken theme makes SDDM fall back to its built-in one.
 - Control Center widget `usr/share/plasma/plasmoids/org.houssamos.controlcenter` (QML, macOS style): button
   at the right of the top bar (`houssamos-layout-6.js`); Wi-Fi, Bluetooth, airplane mode, Do Not Disturb,
   screenshot, settings, brightness and volume sliders, now playing. Each system connection is its own
@@ -75,9 +78,9 @@ KDE pieces in `system_files/`:
 
 Houssam found the previous look poor and asked for a full premium redesign keeping only his logo,
 boot animation and video:
-- Glass with live blur: floating 64 px dock (radius 20) that is just live blur with a faint white
-  frost and hairline edge (Houssam's macOS Monterey reference); it dodges windows so it never stops
-  floating; 30 px frosted top bar; dark glass for menus/popups/notifications/tooltips; KWin blur via
+- Glass with live blur: floating 64 px dock (radius 18) like macOS's: frosted white glass (20 %) over
+  the live blur, one seamless piece (`hint-compose-over-border`), light hairline edge, hugging 48 px
+  icons; it dodges windows so it never stops floating; 30 px frosted top bar; dark glass for menus/popups/notifications/tooltips; KWin blur via
   theme masks, contrast effect on
 - Dock indicators: a dot under running apps (bright for the app in use, dim when minimized, amber
   for attention), nothing behind the icons
@@ -102,7 +105,12 @@ boot animation and video:
 - **KWin script shaders**: `effect.addFragmentShader(Effect.MapTexture, "x.frag")` loads
   `contents/shaders/x_core.frag` on GLSL 1.40+/ES 3 (write `#version 140`; KWin rewrites it for ES) and
   `x.frag` on older GL; use `sampler`, `texcoord0`, `modulation`, `fragColor`. Animate uniforms with
-  `type: Effect.ShaderUniform, uniform: "name", fragmentShader: id`.
+  `type: Effect.ShaderUniform, uniform: "name", fragmentShader: id`. **A blur shader applied this way to
+  the windows behind drew them black in the VM (2026-10-21); removed. Don't retry without a way to test.**
+- **Plasma frame pieces must be whole pixels**: a stroke in a corner piece pokes half a pixel out, so
+  `boundsOnElement` gives 18.5 and Plasma lays the frame out in fractions (seams). Draw outlines as
+  filled shapes. For translucent fills use `hint-compose-over-border` (needs `mask-center`): the centre
+  is stretched over the whole frame and cut by the mask, so the fill has no joins.
 - **KDE draws icons and Plasma theme SVGs with Qt SVG, which can't draw SVG filters** (blur, drop shadow,
   lighting): they come out as grey boxes and hard blobs. Never use filters in `make_theme.py`; the
   Liquid Glass icons use them, so `build.sh` renders every icon to PNG with librsvg (16-256 px, plus @2x)
@@ -173,9 +181,11 @@ boot animation and video:
   app zoom animations ("good"), no more icon boxes, Bazzite Portal gone
 
 ### Built but not yet seen on screen
-- Second round of fixes: dock as plain live blur that always floats (dodges windows) with dot
-  indicators, HoussamOS dock pins (no Bazaar/Lutris), squircle icons (made with Antigravity),
-  background blur during app zooms, Houssam's cursor, purple boot animation and matching login splash.
+- Seen in the VM 2026-10-21 (094e9c8): squircle icons, purple boot, cursor, dock pins; the dock still
+  didn't look like macOS's (dark, small icons, visible joins) and the background-blur shader turned the
+  screen black during minimize/restore.
+- Third round: macOS-like dock (seamless frosted fill, whole-pixel frame pieces, bigger icons), frosted
+  zooming windows instead of the shader, liquid glass login screen (SDDM), the Control Center.
 
 ### To do, in order
 1. Wait for the current GitHub image build to finish, then run `sudo bootc upgrade` and restart in the
@@ -185,8 +195,8 @@ boot animation and video:
    - Test the lock screen clock safely in a window first with `/usr/libexec/kscreenlocker_greet --testing`,
      and only then test real locking with `Meta+L`.
    - The startup login screen (SDDM) is still KDE's default look; it needs its own HoussamOS theme.
-   - Control Center widget: committed locally, **not pushed** until Houssam has tested build 094e9c8;
-     never run on real Plasma yet (only previewed with mock backends).
+   - Control Center widget: pushed with the third round; never run on real Plasma before (only
+     previewed with mock backends).
    - Next asked for: an installer (Anaconda) theme like Houssam's reference (glass panel over a purple
      background).
 2. Design leftovers: Bazzite names in `ujust` commands and MOTD tips; SDDM login theme; check the H

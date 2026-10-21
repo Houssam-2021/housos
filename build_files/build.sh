@@ -244,6 +244,23 @@ if [ ! -f "$lnf_dst/lockscreen/LockScreenUi.qml" ] || \
     exit 1
 fi
 
+# Login screen: KDE's Breeze login theme (copied from the base image, like the lock screen) with
+# the same liquid glass clock, as the default for SDDM. If it ever fails to load, SDDM falls back
+# to its built-in theme, so logging in still works.
+sddm_dst=/usr/share/sddm/themes/houssamos
+cp -a /usr/share/sddm/themes/breeze "$sddm_dst"
+install -Dm644 /ctx/branding/LiquidGlassClock.qml "$sddm_dst/LiquidGlassClock.qml"
+sed -i -e 's/\bClock[[:space:]]*{/LiquidGlassClock {/g' \
+       -e 's|y: (userListComponent\.userList\.y + mainStack\.y)/2 - height/2|y: Math.max(12, (userListComponent.userList.y + mainStack.y)/2 - height/2)|g' \
+    "$sddm_dst/Main.qml"
+sed -i -e 's/^Name=.*/Name=HoussamOS/' -e 's/^Theme-Id=.*/Theme-Id=houssamos/' "$sddm_dst/metadata.desktop"
+mkdir -p /etc/sddm.conf.d
+printf '[Theme]\nCurrent=houssamos\n' > /etc/sddm.conf.d/zz-houssamos.conf
+if ! grep -q 'LiquidGlassClock' "$sddm_dst/Main.qml"; then
+    echo "Login screen clock swap failed"
+    exit 1
+fi
+
 # Glass terminal: Konsole (Bazzite's KDE terminal) opens with the HoussamOS profile, dark glass
 # with live blur of what is behind it, JetBrains Mono, and without the menu bar and toolbars.
 # The terminal logo and welcome banner come from system_files (fastfetch config, motd template).
