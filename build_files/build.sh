@@ -1,6 +1,9 @@
 #!/bin/bash
 
-set -ouex pipefail
+set -ouexE pipefail
+# Job logs need a GitHub login to read, so a failing command is also printed as a workflow
+# annotation, which shows on the public run page
+trap 'echo "::error title=build.sh failed at line ${LINENO}::${BASH_COMMAND}"' ERR
 
 # Copy the contents of system_files/ of the git repo to /
 cp -avf "/ctx/system_files"/. /
