@@ -165,6 +165,9 @@ boot animation and video:
   bootc-image-builder ignores -> build.sh copies overrides into `.repo` files and disables repos with
   missing GPG keys. "mount /dev permission denied" -> podman storage reset, AppArmor userns sysctl,
   `ubuntu-24.04` runner.
+- build.sh prints its failing command as a `::error` annotation (ERR trap), readable without a login.
+  A build can fail once for no reason of ours (5afca30 failed in Build Image after 5 min; the same code
+  passed on the next push), so look at the annotation before changing anything.
 - GitHub job logs need a login. Read failures from check-run annotations
   (`api.github.com/repos/Houssam-2021/housos/check-runs/<job id>/annotations`) or the public run
   page in the browser. The unauthenticated API allows 60 requests/hour.
@@ -200,12 +203,12 @@ boot animation and video:
   announcements gone, liquid glass lock screen clock (Houssam: "so good"), app zoom animations ("good"),
   squircle icons with no grey boxes, purple boot animation, his cursor, HoussamOS dock apps
 
-### Pushed 2026-10-22, not yet seen (fixes after Houssam's test of the G: VM)
+### Built 2026-10-22 (d01bbdc, checked inside the published image), not yet seen on screen
 - Dark mode switch: flips between HoussamOS Glass and the new HoussamOS Glass Light (it had switched
   to KDE's Breeze Dark); `LOOK_VERSION` 5 re-applies the HoussamOS look to existing accounts
 - Liquid glass login screen through SDDM (36369ec's SDDM step had found no SDDM at all: Bazzite's
-  desktop image uses Plasma Login Manager). Check that SDDM starts and shows the clock; the build log
-  says "Login screen: HoussamOS theme made from ..." or a WARNING
+  desktop image uses Plasma Login Manager). The image has `/usr/share/sddm/themes/houssamos` with the
+  clock swapped in, so SDDM and sddm-breeze installed; check on screen that SDDM starts
 - Installer: purple bokeh backdrop with a frosted glass panel (`disk_config/installer/houssamos.css`),
   like Houssam's reference picture; needs a new ISO download to see
 - Bazzite Portal package and Bazzite/uBlue wallpapers removed
