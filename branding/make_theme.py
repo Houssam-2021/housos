@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Generate the HoussamOS Glass Plasma theme and the HoussamOS colour schemes.
+"""Generate the HoussamOS Glass Plasma themes (dark and light) and the HoussamOS colour schemes.
 
 Everything is drawn as vector shapes (no pictures), so it stays sharp at any scale:
   - floating dock: just live blur in a rounded rectangle, with a faint frost and hairline edge
   - top bar: slim frosted strip with a hairline underneath
-  - menus, popups, notifications, widgets and tooltips: dark glass, a little more solid
+  - menus, popups, notifications, widgets and tooltips: glass, a little more solid (dark glass in
+    houssamos-glass, light glass in houssamos-glass-light; the dark mode switch in Brightness &
+    Color flips between the two HoussamOS Global Themes that use them)
   - dock indicators: a small dot under every running app, brightest for the app in use
 Each shape also gets a mask, which is the exact area KWin blurs behind it (the live blur).
 Elements a theme does not draw fall back to Breeze, coloured by the theme's colours.
@@ -34,6 +36,23 @@ PALETTE = {
     "neutral": (255, 181, 71),
     "negative": (255, 92, 122),
 }
+
+# The two looks. Each gets its own Plasma theme with the same shapes: glass is the tint of all glass
+# surfaces, dot the colour of the dock indicators, opacity overrides a shape's glass opacity.
+LOOKS = {
+    "houssamos-glass": {
+        "name": "HoussamOS Glass", "dark": True,
+        "description": "Glass with live blur: floating frosted dock, slim top bar, dark glass menus",
+        "glass": PALETTE["glass"], "dot": PALETTE["edge"], "opacity": {},
+    },
+    "houssamos-glass-light": {
+        "name": "HoussamOS Glass Light", "dark": False,
+        "description": "Glass with live blur: floating frosted dock, slim top bar, light glass menus",
+        "glass": (246, 247, 251), "dot": (28, 32, 44),
+        "opacity": {"dock": 0.40, "dialog": 0.78, "tooltip": 0.90, "topbar": 0.62},
+    },
+}
+LOOK = LOOKS[THEME_ID]   # the look being written; main() goes through both
 
 # (radius, glass opacity, edge opacity, content margins top/bottom/left/right)
 SHAPES = {
@@ -78,7 +97,7 @@ class Svg:
         the light edge.
         """
         r, w = max(radius, 1), 10
-        g = tint or PALETTE["glass"]
+        g = tint or LOOK["glass"]
         rim = edge if rim is None else rim
         fill = 'fill="#000000"' if mask else rgba(g, glass)
         top_fill = fill
@@ -224,6 +243,7 @@ def arc_line(corner, r):
 
 def frame_svg(shape, with_topbar=False):
     radius, glass, edge, margins = SHAPES[shape]
+    glass = LOOK["opacity"].get(shape, glass)
     look = DOCK_GLASS if shape == "dock" else {}
     svg = Svg()
     svg.frame("", radius, glass, edge, **look)
@@ -232,7 +252,7 @@ def frame_svg(shape, with_topbar=False):
     if with_topbar:
         # Top bar: "north-" elements. The mask naming differs between Plasma versions,
         # so both orders are provided.
-        svg.frame("north-", 1, 0.55, 0.08, hairline_only_bottom=True)
+        svg.frame("north-", 1, LOOK["opacity"].get("topbar", 0.55), 0.08, hairline_only_bottom=True)
         svg.frame("north-mask-", 1, 0.55, 0.08, mask=True, hairline_only_bottom=True)
         svg.frame("mask-north-", 1, 0.55, 0.08, mask=True, hairline_only_bottom=True)
         svg.hints("north-", (2, 2, 6, 6))
@@ -245,7 +265,7 @@ def tasks_svg():
     pinned app that isn't running) with "-hover" when the pointer is on it, falling back to
     "hover" and then to the plain state, so every state is listed. Every state gets the same
     margins so icons keep their size when an app starts."""
-    white, attention = PALETTE["edge"], PALETTE["neutral"]
+    white, attention = LOOK["dot"], PALETTE["neutral"]
     dots = {"": None, "normal-": (white, 0.55), "minimized-": (white, 0.30),
             "attention-": (attention, 0.95), "focus-": (white, 0.95), "launcher-": None}
     states = {}
@@ -326,8 +346,10 @@ def colours_text(dark, name=None):
     return "\n".join(lines)
 
 
-def main():
-    theme = OUT / f"usr/share/plasma/desktoptheme/{THEME_ID}"
+def write_theme(theme_id):
+    global LOOK
+    LOOK = LOOKS[theme_id]
+    theme = OUT / f"usr/share/plasma/desktoptheme/{theme_id}"
     if theme.exists():
         shutil.rmtree(theme)
     files = {
@@ -343,8 +365,7 @@ def main():
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text, newline="\n")
     (theme / "metadata.json").write_text(json.dumps({
-        "KPlugin": {"Id": THEME_ID, "Name": "HoussamOS Glass",
-                    "Description": "Glass with live blur: floating frosted dock, slim top bar, glass menus",
+        "KPlugin": {"Id": theme_id, "Name": LOOK["name"], "Description": LOOK["description"],
                     "Authors": [{"Name": "Houssam"}], "License": "CC-BY-SA-4.0", "Version": "2.4",
                     "Website": "https://github.com/Houssam-2021/housos"},
         "X-Plasma-API-Minimum-Version": "6.0"
@@ -355,13 +376,19 @@ def main():
         "[BlurBehindEffect]\nenabled=true\n\n"
         "[ContrastEffect]\nenabled=true\ncontrast=1.0\nintensity=1.0\nsaturation=2.0\n\n"
         "[AdaptiveTransparency]\nenabled=false\n", newline="\n")
-    (theme / "colors").write_text(colours_text(dark=True), newline="\n")
+    (theme / "colors").write_text(colours_text(dark=LOOK["dark"]), newline="\n")
+    return len(files)
 
+
+def main():
+    for theme_id in LOOKS:
+        count = write_theme(theme_id)
     schemes = OUT / "usr/share/color-schemes"
     schemes.mkdir(parents=True, exist_ok=True)
     (schemes / "HoussamOSDark.colors").write_text(colours_text(True, "HoussamOSDark"), newline="\n")
     (schemes / "HoussamOS.colors").write_text(colours_text(False, "HoussamOS"), newline="\n")
-    print(f"theme {THEME_ID}: {len(files)} frame files (+ translucent copies), colour schemes HoussamOSDark, HoussamOS")
+    print(f"themes {', '.join(LOOKS)}: {count} frame files each (+ translucent copies), "
+          "colour schemes HoussamOSDark, HoussamOS")
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@
                 "Name": "Houssam"
             }
         ],
-        "Description": "HoussamOS liquid glass: glass dock and top bar, Liquid Glass icons, light colours",
+        "Description": "HoussamOS liquid glass: glass dock and top bar, dark glass menus, Liquid Glass icons",
         "Id": "org.houssamos.glass.desktop",
         "License": "CC-BY-SA-4.0",
         "Name": "HoussamOS Glass",

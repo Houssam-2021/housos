@@ -1,0 +1,16 @@
+{
+    "KPlugin": {
+        "Id": "houssamos-glass-light",
+        "Name": "HoussamOS Glass Light",
+        "Description": "Glass with live blur: floating frosted dock, slim top bar, light glass menus",
+        "Authors": [
+            {
+                "Name": "Houssam"
+            }
+        ],
+        "License": "CC-BY-SA-4.0",
+        "Version": "2.4",
+        "Website": "https://github.com/Houssam-2021/housos"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

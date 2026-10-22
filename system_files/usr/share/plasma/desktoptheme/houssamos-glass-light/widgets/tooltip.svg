@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240">
+<g id="topleft" transform="translate(0,0)"><path fill="rgb(246,247,251)" fill-opacity="0.900" d="M10,10 L0,10 A10,10 0 0 1 10,0 Z"/><path fill="rgb(255,255,255)" fill-opacity="0.120" d="M0,10 A10,10 0 0 1 10,0 L10,1 A9,9 0 0 0 1,10 Z"/></g>
+<g id="topright" transform="translate(16,0)"><path fill="rgb(246,247,251)" fill-opacity="0.900" d="M0,10 L0,0 A10,10 0 0 1 10,10 Z"/><path fill="rgb(255,255,255)" fill-opacity="0.120" d="M0,0 A10,10 0 0 1 10,10 L9,10 A9,9 0 0 0 0,1 Z"/></g>
+<g id="bottomleft" transform="translate(32,0)"><path fill="rgb(246,247,251)" fill-opacity="0.900" d="M10,0 L10,10 A10,10 0 0 1 0,0 Z"/><path fill="rgb(255,255,255)" fill-opacity="0.120" d="M10,10 A10,10 0 0 1 0,0 L1,0 A9,9 0 0 0 10,9 Z"/></g>
+<g id="bottomright" transform="translate(48,0)"><path fill="rgb(246,247,251)" fill-opacity="0.900" d="M0,0 L10,0 A10,10 0 0 1 0,10 Z"/><path fill="rgb(255,255,255)" fill-opacity="0.120" d="M10,0 A10,10 0 0 1 0,10 L0,9 A9,9 0 0 0 9,0 Z"/></g>
+<g id="top" transform="translate(64,0)"><rect fill="rgb(246,247,251)" fill-opacity="0.900" width="10" height="10"/><rect fill="rgb(255,255,255)" fill-opacity="0.120" x="0" y="0" width="10" height="1"/></g>
+<g id="left" transform="translate(80,0)"><rect fill="rgb(246,247,251)" fill-opacity="0.900" width="10" height="10"/><rect fill="rgb(255,255,255)" fill-opacity="0.120" x="0" y="0" width="1" height="10"/></g>
+<g id="right" transform="translate(96,0)"><rect fill="rgb(246,247,251)" fill-opacity="0.900" width="10" height="10"/><rect fill="rgb(255,255,255)" fill-opacity="0.120" x="9" y="0" width="1" height="10"/></g>
+<g id="bottom" transform="translate(112,0)"><rect fill="rgb(246,247,251)" fill-opacity="0.900" width="10" height="10"/><rect fill="rgb(255,255,255)" fill-opacity="0.120" x="0" y="9" width="10" height="1"/></g>
+<g id="center" transform="translate(128,0)"><rect fill="rgb(246,247,251)" fill-opacity="0.900" width="10" height="10"/></g>
+<g id="mask-topleft" transform="translate(0,80)"><path fill="#000000" d="M10,10 L0,10 A10,10 0 0 1 10,0 Z"/></g>
+<g id="mask-topright" transform="translate(16,80)"><path fill="#000000" d="M0,10 L0,0 A10,10 0 0 1 10,10 Z"/></g>
+<g id="mask-bottomleft" transform="translate(32,80)"><path fill="#000000" d="M10,0 L10,10 A10,10 0 0 1 0,0 Z"/></g>
+<g id="mask-bottomright" transform="translate(48,80)"><path fill="#000000" d="M0,0 L10,0 A10,10 0 0 1 0,10 Z"/></g>
+<g id="mask-top" transform="translate(64,80)"><rect fill="#000000" width="10" height="10"/></g>
+<g id="mask-left" transform="translate(80,80)"><rect fill="#000000" width="10" height="10"/></g>
+<g id="mask-right" transform="translate(96,80)"><rect fill="#000000" width="10" height="10"/></g>
+<g id="mask-bottom" transform="translate(112,80)"><rect fill="#000000" width="10" height="10"/></g>
+<g id="mask-center" transform="translate(128,80)"><rect fill="#000000" width="10" height="10"/></g>
+<rect id="hint-stretch-borders" x="0" y="160" width="1" height="1" fill="#000000" fill-opacity="0"/>
+<rect id="hint-top-margin" x="30" y="160" width="1" height="8" fill="#000000" fill-opacity="0"/>
+<rect id="hint-bottom-margin" x="60" y="160" width="1" height="8" fill="#000000" fill-opacity="0"/>
+<rect id="hint-left-margin" x="90" y="160" width="10" height="1" fill="#000000" fill-opacity="0"/>
+<rect id="hint-right-margin" x="120" y="160" width="10" height="1" fill="#000000" fill-opacity="0"/>
+</svg>

@@ -103,6 +103,15 @@ if [ "$svg_count" -eq 0 ] || [ "$png_count" -ne $((svg_count * 17)) ]; then
     echo "Liquid Glass icons: expected $((svg_count * 17)) PNGs from $svg_count SVGs, got $png_count"
     exit 1
 fi
+# The light look uses the same icons through links, with Tela's dark symbols (made for light
+# backgrounds) behind them instead of Tela-dark's white ones
+lgl=/usr/share/icons/HoussamOS-LiquidGlass-Light
+mkdir -p "$lgl"
+for dir in "$lg"/*/; do
+    ln -sfn "../HoussamOS-LiquidGlass/$(basename "$dir")" "$lgl/$(basename "$dir")"
+done
+sed -e 's/^Name=.*/Name=HoussamOS Liquid Glass Light/' -e 's/^Inherits=.*/Inherits=Tela,breeze,hicolor/' \
+    "$lg/index.theme" > "$lgl/index.theme"
 
 if command -v gtk-update-icon-cache > /dev/null; then
     for theme in /usr/share/icons/*/; do
@@ -138,6 +147,10 @@ kset() { kwriteconfig6 --file "/etc/xdg/$1" "${@:2}"; }
 # /usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/
 chmod 755 /usr/libexec/houssamos-user-setup
 kset kdeglobals --group KDE --key LookAndFeelPackage org.houssamos.glass.desktop
+# The dark mode switch (Brightness & Color, System Settings) flips between these two; KDE's own
+# defaults are Breeze and Breeze Dark, which would swap the whole HoussamOS look for KDE's
+kset kdeglobals --group KDE --key DefaultDarkLookAndFeel org.houssamos.glass.desktop
+kset kdeglobals --group KDE --key DefaultLightLookAndFeel org.houssamos.glasslight.desktop
 kset kdeglobals --group KDE --key widgetStyle Darkly
 kset kdeglobals --group General --key ColorScheme HoussamOSDark
 kset kdeglobals --group Icons --key Theme HoussamOS-LiquidGlass
@@ -180,6 +193,12 @@ fi
 # Bazzite pins its own picks to the dock (Lutris, its Bazaar store and Portal); HoussamOS pins its
 # own in houssamos-layout-5.js instead
 rm -f /usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/bazzite-pins.js
+# Bazzite's look goes: its Portal app, its and Universal Blue's wallpapers and its docs shortcut.
+# Its gaming parts (Steam and game mode setup, drivers, hardware fixes, updates) stay.
+dnf5 remove -y bazzite-portal || echo "WARNING: could not remove bazzite-portal"
+rm -rf /usr/share/wallpapers/bazzite /usr/share/wallpapers/bazzite-*.png /usr/share/wallpapers/VGUI2.jpg \
+    /usr/share/wallpapers/ublue.png /usr/share/wallpapers/convergence.* /usr/share/wallpapers/giants.jxl
+rm -f /usr/share/applications/bazzite-documentation.desktop
 
 # Bazzite's image may carry its own /etc/hostname; new installs should be called houssamos
 if [ -f /etc/hostname ]; then
@@ -243,9 +262,32 @@ if [ ! -f "$lnf_dst/lockscreen/LockScreenUi.qml" ] || \
     echo "Lock screen clock swap failed"
     exit 1
 fi
+# HoussamOS Glass Light shares the login splash and the lock screen with HoussamOS Glass
+light_lnf=/usr/share/plasma/look-and-feel/org.houssamos.glasslight.desktop/contents
+for sub in splash lockscreen components osd logout; do
+    if [ -d "$lnf_dst/$sub" ]; then
+        cp -a "$lnf_dst/$sub" "$light_lnf/"
+    fi
+done
 
-# Login screen: KDE's Breeze login theme (copied from the base image, like the lock screen) with
-# the same liquid glass clock, as the default for SDDM. Fedora names its copy 01-breeze-fedora, so
+# Login manager: Bazzite's desktop image starts KDE's Plasma Login Manager, whose screen is built
+# into its program and can't be restyled. HoussamOS uses SDDM instead (as Bazzite's Steam Deck
+# image does), whose Breeze theme is QML on disk. Fedora 44 has the Breeze login theme (now its own
+# package) only in updates-testing so far. If SDDM can't be installed, Plasma Login Manager stays,
+# with its own login screen.
+if dnf5 install -y sddm sddm-wayland-plasma && \
+   { dnf5 install -y sddm-breeze || dnf5 install -y --enablerepo=updates-testing sddm-breeze; }; then
+    dnf5 install -y sddm-kcm || true
+    if rpm -q plasma-login-manager > /dev/null; then
+        dnf5 remove -y plasma-login-manager || echo "WARNING: could not remove plasma-login-manager"
+    fi
+    systemctl enable -f sddm.service
+else
+    echo "WARNING: SDDM could not be installed; keeping Plasma Login Manager"
+fi
+
+# Login screen: KDE's Breeze login theme (sddm-breeze, installed above) copied with the same
+# liquid glass clock as the lock screen, as the default for SDDM. Fedora names its copy 01-breeze-fedora, so
 # the theme is found by its contents. If it can't be found or changed, the login screen stays as
 # it is; and if the new theme ever fails to load, SDDM falls back to its built-in one.
 echo "SDDM themes in the base image: $(ls /usr/share/sddm/themes 2> /dev/null | tr '\n' ' ')"
@@ -266,6 +308,10 @@ if [ -n "$sddm_src" ]; then
         "$sddm_dst/Main.qml"
     if [ -f "$sddm_dst/metadata.desktop" ]; then
         sed -i -e 's/^Name=.*/Name=HoussamOS/' -e 's/^Theme-Id=.*/Theme-Id=houssamos/' "$sddm_dst/metadata.desktop"
+    fi
+    # Fedora's copy shows the Fedora logo under the password box
+    if [ -f "$sddm_dst/theme.conf" ]; then
+        sed -i 's|^logo=.*|logo=/usr/share/icons/hicolor/scalable/apps/houssamos-logo.svg|' "$sddm_dst/theme.conf"
     fi
     if grep -q 'LiquidGlassClock' "$sddm_dst/Main.qml"; then
         mkdir -p /etc/sddm.conf.d

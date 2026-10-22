@@ -1,7 +1,7 @@
 # HoussamOS: project context
 
 Read this first in every session. Personal setup (drives, hardware, VM, working style) is in
-`CLAUDE.local.md` next to this file (kept off GitHub). Last updated 2026-10-21 (evening).
+`CLAUDE.local.md` next to this file (kept off GitHub). Last updated 2026-10-22.
 
 ## What HoussamOS is
 
@@ -37,10 +37,15 @@ Built on **Bazzite** (Fedora Atomic / bootc, KDE Plasma 6) with the Universal Bl
 | `.github/workflows/build.yml` | matrix of the two images; cosign signing is skipped until a `SIGNING_SECRET` repo secret exists |
 | `.github/workflows/build-disk.yml` | ISOs with bootc-image-builder (run directly, not the deprecated action). Triggers: after a push-triggered image build, on pushes to `disk_config/**` or itself, or manually. Swaps HoussamOS pictures into the ISO's `install.img` (falls back to the unbranded ISO with a warning). Failures are copied into public annotations |
 | `disk_config/iso.toml` | kickstart `bootc switch` to the image (the workflow substitutes each image); Localization module for language/keyboard screens |
+| `disk_config/installer/` | installer pictures (from `make_branding.py`, incl. the bokeh backdrop `houssamos-bg.jpg`) and `houssamos.css` (purple backdrop, frosted glass panel), which build-disk.yml appends to Anaconda's `anaconda-gtk.css` and to the profile's `custom_stylesheet` (Fedora's `fedora.css`, loaded after it). Anaconda is GTK 3: its CSS nodes are `AnacondaHubWindow`, `AnacondaSpokeWindow`, `AnacondaStandaloneWindow` (each holds a `box.background` with `#nav-box` on top), `.logo-sidebar`/`.logo`; the main window is `window > overlay > stack` |
 
 KDE pieces in `system_files/`:
-- Global Theme `usr/share/plasma/look-and-feel/org.houssamos.glass.desktop` (defaults + dark splash `Splash.qml`)
-- Plasma theme `usr/share/plasma/desktoptheme/houssamos-glass` (generated)
+- Global Themes `usr/share/plasma/look-and-feel/org.houssamos.glass.desktop` (dark, the default; defaults +
+  splash `Splash.qml`) and `org.houssamos.glasslight.desktop` (light: HoussamOS colours, light glass Plasma
+  theme, `HoussamOS-LiquidGlass-Light` icons = links to the same PNGs with `Tela` behind them; build.sh
+  copies the splash and lock screen into it). kdeglobals `DefaultDarkLookAndFeel`/`DefaultLightLookAndFeel`
+  make the dark mode switch (Brightness & Color, System Settings) flip between the two
+- Plasma themes `usr/share/plasma/desktoptheme/houssamos-glass` and `houssamos-glass-light` (generated)
 - Layout scripts `usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/houssamos-layout*.js`:
   top bar (H menu, clock, tray) + floating centred dock that fits its apps. **Plasma runs each script
   once per user, per filename**: new behaviour for existing desktops needs a new file name
@@ -49,7 +54,7 @@ KDE pieces in `system_files/`:
   Bazzite's `bazzite-pins.js`; `-3` looked for the wrong name and does nothing).
 - `usr/libexec/houssamos-user-setup` + `etc/xdg/autostart/houssamos-user-setup.desktop`: applies the
   look once to accounts that existed before (their saved KDE settings override `/etc/xdg`). Raise
-  `LOOK_VERSION` (now 3) to re-apply after a design change.
+  `LOOK_VERSION` (now 5) to re-apply after a design change.
 - Terminal: `usr/share/ublue-os/motd/template.md` (ASCII logo banner), `usr/share/houssamos/fastfetch.jsonc`
   + aliases in `etc/profile.d` and fish `vendor_conf.d`, Konsole profile/colour scheme `HoussamOS`.
 - Icons: H (small) / HOS (large) in hicolor; build.sh replaces Bazzite/Fedora `distributor-logo`,
@@ -60,9 +65,15 @@ KDE pieces in `system_files/`:
   moves the window is frosted glass (see-through with KWin's blur behind it via
   `WindowForceBlurRole`; content fades in as it lands). build.sh turns it on and KDE's
   scale/glide/fade/squash/magic lamp off.
-- Login screen (SDDM): build.sh copies the base image's Breeze login theme to
-  `/usr/share/sddm/themes/houssamos`, swaps in `LiquidGlassClock.qml` like the lock screen, and makes it
-  the default (`/etc/sddm.conf.d/zz-houssamos.conf`). A broken theme makes SDDM fall back to its built-in one.
+- Login screen: Bazzite's desktop image uses KDE's Plasma Login Manager, whose screen is compiled into
+  its program (can't be restyled). build.sh installs SDDM + `sddm-wayland-plasma` + `sddm-breeze` (Fedora
+  44 has it only in updates-testing), removes Plasma Login Manager and enables SDDM (as Bazzite's deck
+  image does), then copies the Breeze login theme to `/usr/share/sddm/themes/houssamos`, swaps in
+  `LiquidGlassClock.qml` like the lock screen, sets the HoussamOS logo and makes it the default
+  (`/etc/sddm.conf.d/zz-houssamos.conf`). If SDDM can't be installed, Plasma Login Manager stays. A
+  broken theme makes SDDM fall back to its built-in one.
+- Bazzite's look removed in build.sh: `bazzite-portal`, Bazzite/uBlue wallpapers, its docs shortcut,
+  announcements, dock pins. Its gaming parts (Steam/game mode setup, drivers, hardware fixes, updates) stay.
 - Control Center widget `usr/share/plasma/plasmoids/org.houssamos.controlcenter` (QML, macOS style): button
   at the right of the top bar (`houssamos-layout-6.js`); Wi-Fi, Bluetooth, airplane mode, Do Not Disturb,
   screenshot, settings, brightness and volume sliders, now playing. Each system connection is its own
@@ -113,8 +124,8 @@ boot animation and video:
   honestly: keep the wallpaper sharp around it, and behind it blur (PIL GaussianBlur ~28 px for
   BlurStrength 12), apply saturation then contrast, then the theme's fill.
 - **The SDDM theme step broke the image build twice** (b250037, ef382a9; exit 1 in Build Image, logs
-  need a GitHub login). It now finds the Breeze login theme by its `Main.qml` and only warns if it can't
-  make the HoussamOS theme. Whether the theme was made shows in the build log ("Login screen: ...") or
+  need a GitHub login), because the base image had no SDDM at all (Plasma Login Manager). It now finds
+  the Breeze login theme by its `Main.qml` and only warns if it can't make the HoussamOS theme. Whether the theme was made shows in the build log ("Login screen: ...") or
   on screen; `ls /usr/share/sddm/themes` in the VM tells which themes exist.
 - **Plasma frame pieces must be whole pixels**: a stroke in a corner piece pokes half a pixel out, so
   `boundsOnElement` gives 18.5 and Plasma lays the frame out in fractions (seams). Draw outlines as
@@ -161,7 +172,17 @@ boot animation and video:
 - Pushing anything except README/disk config starts a new image build and **cancels a running one**
   (concurrency). Batch changes; don't push while a build you need is running.
 - On Windows git, set executable bits with `git update-index --chmod=+x <file>`.
-- Bazzite facts: its KDE terminal is Konsole (`kde-ptyxis` wraps it); it uses SDDM; it sets
+- **Plasma's dark mode switch applies whole Global Themes** (`DefaultDarkLookAndFeel` /
+  `DefaultLightLookAndFeel` in kdeglobals `[KDE]`, KDE defaults Breeze Dark / Breeze). Unset, it threw
+  Houssam's desktop back to plain Breeze Dark (2026-10-22); HoussamOS sets both to its own two themes.
+- **Look inside the published image without a VM**: get a token from
+  `https://ghcr.io/token?scope=repository:houssam-2021/houssamos:pull`, read the manifest and config
+  (`history[].created_by` names the packages in each rechunked layer), download single layers (~10 MB/s).
+  Files not owned by a package sit in the layer "initramfs ... and rpmostree-unpackaged-content"; tar
+  entries are hard links into `sysroot/ostree/repo/objects`, so extract the object (`tar -xOzf`).
+  `/usr/share/houssamos/build-id` tells which build it is.
+- Bazzite facts: its KDE terminal is Konsole (`kde-ptyxis` wraps it); its desktop image uses Plasma Login
+  Manager since Fedora 44 (we switch to SDDM, see KDE pieces); Plasma 6.7, Fedora 44, kernel 7.2; it sets
   `DEFAULT_HOSTNAME="bazzite"` (we override; installed VMs need `hostnamectl set-hostname houssamos`);
   `bazzite-portal` autostarts from `/etc/skel/.config/autostart`; dock pins come from Bazzite's
   `bazzite-pins.js`.
@@ -179,18 +200,33 @@ boot animation and video:
   announcements gone, liquid glass lock screen clock (Houssam: "so good"), app zoom animations ("good"),
   squircle icons with no grey boxes, purple boot animation, his cursor, HoussamOS dock apps
 
-### Built but not yet seen on screen (latest image build 36369ec, both images succeeded)
+### Pushed 2026-10-22, not yet seen (fixes after Houssam's test of the G: VM)
+- Dark mode switch: flips between HoussamOS Glass and the new HoussamOS Glass Light (it had switched
+  to KDE's Breeze Dark); `LOOK_VERSION` 5 re-applies the HoussamOS look to existing accounts
+- Liquid glass login screen through SDDM (36369ec's SDDM step had found no SDDM at all: Bazzite's
+  desktop image uses Plasma Login Manager). Check that SDDM starts and shows the clock; the build log
+  says "Login screen: HoussamOS theme made from ..." or a WARNING
+- Installer: purple bokeh backdrop with a frosted glass panel (`disk_config/installer/houssamos.css`),
+  like Houssam's reference picture; needs a new ISO download to see
+- Bazzite Portal package and Bazzite/uBlue wallpapers removed
+
+### Built but not yet seen on screen (image build 36369ec, both images succeeded)
 - macOS-like dock: frosted 30 % white over the live blur with vibrancy (plasmarc contrast 1.0,
   saturation 2.0), one seamless piece (`hint-compose-over-border`), whole-pixel frame pieces, 48 px
   icons, dodges windows so it always floats
 - Frosted zooming windows (the background-blur shader was removed after it turned the screen black)
-- Liquid glass login screen (SDDM). The build step may have skipped it with a warning (it broke two
-  builds before it was made safe); check on screen, and `ls /usr/share/sddm/themes` in the VM
-- Control Center widget at the right of the top bar: first run on real Plasma (switches, sliders)
-- Houssam asked to "make the liquid glass lockscreen default"; read as the startup login screen.
-  Confirm with him that this is what he meant
+- Control Center widget at the right of the top bar: seen in the G: VM (icon present); switches and
+  sliders not yet checked
+- Houssam's "make the liquid glass lockscreen default" means the startup login screen (confirmed
+  2026-10-22: he sees liquid glass only with `kscreenlocker_greet --testing`)
 
-### In progress: HoussamOS on the 256 GB SSD for his ThinkPad T500 (no USB stick)
+### HoussamOS on the 256 GB SSD for his ThinkPad T500 (installed 2026-10-21, old build)
+- Installed and `pmbr_boot` set; `bootc upgrade` (5.1 GB from the Oct 19 ISO) was stopped, to be run on
+  the T500 itself. The raw-disk VM `C:\Users\Houssam\VMs\HoussamOS-T500` must never be started again
+  (its disk link points at "disk #1", which is G: when G: is plugged in); its vmdk was renamed
+  `.disabled`. The one USB adapter now holds G: again; Windows had marked G: offline because the
+  offline flag sticks to the adapter
+- How it was done:
 - The SABRENT USB SSD (was E:, disk #1) is installed through VMware as a raw disk in BIOS mode by
   `C:\Users\Houssam\Desktop\install-houssamos-t500.cmd` (+ `.ps1`; finds the disk by name and size,
   wants ERASE typed, wipes it, takes it offline, makes the VM `C:\Users\Houssam\VMs\HoussamOS-T500`)
@@ -206,8 +242,8 @@ boot animation and video:
 2. Then his choice (asked, not answered yet): start Phase 3 (undo timeline + automatic game mode) or
    first finish the Phase 2 leftovers below.
 3. Phase 2 leftovers: GRUB boot menu still Fedora/Bazzite; Bazzite names in `ujust` and MOTD tips; a
-   HoussamOS welcome app; installer (Anaconda) redesign like his reference picture, a glass panel over a
-   purple bokeh background (he said "leave it for later"); lighter look option for old hardware.
+   HoussamOS welcome app; installer product name/version in its header; lighter look option for old
+   hardware.
 4. Real hardware test on his gaming PC with `houssamos-nvidia` (GTX 1080 Ti); test rollback.
 5. Phase 3, the features that make HoussamOS different: undo timeline (snapshots + timeline app),
    gaming extras ("Will my games work?" checker, automatic game mode), privacy report, offline AI

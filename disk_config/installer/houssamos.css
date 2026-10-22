@@ -1,0 +1,75 @@
+/* HoussamOS installer look: the purple backdrop (houssamos-bg.jpg, made by
+ * branding/make_branding.py) behind a frosted glass panel. build-disk.yml appends this to the
+ * installer's stylesheets, so these rules come after Fedora's and win over them. */
+
+/* The whole main window (its screens sit in a stack inside an overlay; dialogs are other windows
+ * and keep their plain background): the purple backdrop */
+window > overlay > stack {
+    background-color: #22163f;
+    background-image: url("/usr/share/anaconda/pixmaps/houssamos-bg.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* The sidebar on the welcome and summary screens: no strip of its own, just the backdrop with
+ * the HoussamOS logo on it */
+.logo-sidebar {
+    background-color: transparent;
+    background-image: none;
+}
+
+/* The content of every screen sits on a panel of light frosted glass */
+AnacondaHubWindow > box.background,
+AnacondaSpokeWindow > box.background,
+AnacondaStandaloneWindow > box.background,
+AnacondaBaseStandalone > box.background {
+    background-color: rgba(248, 246, 255, 0.66);
+    background-image: none;
+    margin: 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 10px 40px rgba(10, 4, 30, 0.45);
+    color: #1d1a2e;
+}
+
+/* The header strip with the screen name: a brighter band of the same glass */
+#nav-box,
+AnacondaSpokeWindow #nav-box {
+    background-color: rgba(255, 255, 255, 0.38);
+    background-image: none;
+    color: #1d1a2e;
+    border-radius: 18px 18px 0 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+#anaconda-name-label,
+#anaconda-distro-label {
+    color: #1d1a2e;
+}
+
+/* Buttons and lists blend into the glass instead of sitting on grey */
+AnacondaHubWindow scrolledwindow,
+AnacondaHubWindow viewport {
+    background-color: transparent;
+}
+
+AnacondaHubWindow button:not(.suggested-action):not(.destructive-action),
+AnacondaStandaloneWindow button:not(.suggested-action):not(.destructive-action) {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    box-shadow: none;
+}
+
+AnacondaHubWindow button:not(.suggested-action):not(.destructive-action):hover,
+AnacondaStandaloneWindow button:not(.suggested-action):not(.destructive-action):hover {
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+/* The note at the bottom ("Please complete items marked..."): softer, on the glass */
+infobar.warning box {
+    background-color: rgba(255, 196, 120, 0.85);
+    border-radius: 0 0 18px 18px;
+}

@@ -4,10 +4,10 @@
 # Accounts that already existed (for example created under Bazzite) keep their own saved KDE
 # settings, which override the system-wide HoussamOS defaults. This puts the HoussamOS Global
 # Theme, wallpaper, icons, fonts and terminal profile in place for them. It runs again only when
-# LOOK_VERSION is raised (4 = HoussamOS cursor), so after that the user's own changes are
-# left alone.
+# LOOK_VERSION is raised (4 = HoussamOS cursor, 5 = HoussamOS light and dark looks for the dark
+# mode switch), so after that the user's own changes are left alone.
 
-LOOK_VERSION=4
+LOOK_VERSION=5
 config="${XDG_CONFIG_HOME:-$HOME/.config}"
 marker="$config/houssamos-look-version"
 
@@ -20,6 +20,9 @@ for _ in $(seq 30); do
 done
 
 plasma-apply-lookandfeel --apply org.houssamos.glass.desktop
+# The dark mode switch flips between the HoussamOS looks, not KDE's Breeze ones
+kwriteconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel org.houssamos.glass.desktop
+kwriteconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel org.houssamos.glasslight.desktop
 plasma-apply-wallpaperimage /usr/share/wallpapers/HoussamOS
 kwriteconfig6 --file kdeglobals --group Icons --key Theme HoussamOS-LiquidGlass
 plasma-apply-cursortheme HoussamOS-Cursor

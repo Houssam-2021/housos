@@ -178,8 +178,20 @@ jobs:
           pixmaps="${target}/usr/share/anaconda/pixmaps"
           echo "### Installer pictures before branding" >> "${GITHUB_STEP_SUMMARY}"
           ls "${pixmaps}" | sed 's/^/- /' >> "${GITHUB_STEP_SUMMARY}"
-          for art in disk_config/installer/*.png; do
+          for art in disk_config/installer/*.png disk_config/installer/*.jpg; do
             sudo install -m 644 "${art}" "${pixmaps}/$(basename "${art}")"
+          done
+          # The HoussamOS look (purple backdrop, glass panel) goes at the end of the installer's own
+          # stylesheet and of the product stylesheet its profiles name (Fedora's, loaded after it),
+          # so its rules win over both
+          sheets="/usr/share/anaconda/anaconda-gtk.css $({ grep -rhoP '^\s*custom_stylesheet\s*=\s*\K\S+' \
+            "${target}/etc/anaconda" 2> /dev/null || true; } | sort -u | tr '\n' ' ')"
+          echo "### Installer stylesheets branded" >> "${GITHUB_STEP_SUMMARY}"
+          for sheet in ${sheets}; do
+            if [ -f "${target}${sheet}" ]; then
+              sudo tee -a "${target}${sheet}" < disk_config/installer/houssamos.css > /dev/null
+              echo "- ${sheet}" >> "${GITHUB_STEP_SUMMARY}"
+            fi
           done
           if [ "${target}" != "${WORK}/root" ]; then sudo umount "${WORK}/mnt"; fi
 

@@ -23,7 +23,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "branding" / "src"
@@ -229,15 +229,55 @@ def installer_art(wallpaper_path, logo):
     wide = wp.resize((1920, round(wp.height * 1920 / wp.width)), Image.LANCZOS)
     wide.crop((0, 0, 1920, 64)).save(out / "topbar-bg.png", optimize=True)
     logo.resize((170, round(logo.height * 170 / logo.width)), Image.LANCZOS).save(out / "sidebar-logo.png", optimize=True)
-    print("installer art: sidebar-bg, sidebar-logo, topbar-bg")
+    installer_background(out / "houssamos-bg.jpg")
+    print("installer art: sidebar-bg, sidebar-logo, topbar-bg, houssamos-bg")
 
 
-def look_and_feel(wallpaper_path, logo):
-    """Pictures for the HoussamOS Global Theme (system_files/.../look-and-feel/org.houssamos.glass.desktop)."""
-    lnf = OUT / "usr/share/plasma/look-and-feel/org.houssamos.glass.desktop/contents"
-    (lnf / "splash/images").mkdir(parents=True, exist_ok=True)
+def installer_background(path, size=(1920, 1080), seed=7):
+    """The installer's backdrop (houssamos.css draws the glass panel over it): the boot purple
+    lit up in violet, a soft streak of light, and out-of-focus circles of light (bokeh) in three
+    depths. Seeded, so it comes out the same every run."""
+    w, h = size
+    rng = np.random.default_rng(seed)
+    y, x = np.mgrid[0:h, 0:w] / np.array([h, w])[:, None, None]
+    deep, purple, glow = np.array([22, 13, 48]), np.array([62, 36, 112]), np.array([150, 105, 230])
+    t = np.clip(0.55 * x + 0.45 * y, 0, 1)[..., None]
+    base = deep + (purple - deep) * t
+    light = np.exp(-(((x - 0.62) / 0.42) ** 2 + ((y - 0.38) / 0.36) ** 2))[..., None]
+    base = base + (glow - base) * 0.55 * light
+    img = Image.fromarray(np.clip(base, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
+
+    streak = Image.new("L", size, 0)
+    draw = ImageDraw.Draw(streak)
+    for offset, width, strength in ((0, 90, 70), (170, 40, 45)):
+        draw.line([(-200, h * 0.95 + offset), (w + 200, h * 0.05 + offset)], fill=strength, width=width)
+    streak = streak.filter(ImageFilter.GaussianBlur(70))
+    img.alpha_composite(Image.merge("RGBA", (*[Image.new("L", size, c) for c in (235, 220, 255)], streak)))
+
+    tints = [(196, 160, 255), (255, 176, 230), (150, 125, 255), (232, 214, 255)]
+    for count, radii, alphas, blur in ((14, (90, 170), (25, 55), 18), (30, (35, 85), (35, 90), 6),
+                                       (34, (10, 30), (60, 150), 1.5)):
+        layer = Image.new("RGBA", size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(layer)
+        for _ in range(count):
+            r = rng.uniform(*radii)
+            cx, cy = rng.uniform(-0.05, 1.05) * w, rng.uniform(-0.05, 1.05) * h
+            colour = tints[rng.integers(len(tints))]
+            a = int(rng.uniform(*alphas))
+            draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(*colour, a),
+                         outline=(*colour, min(255, int(a * 1.6))), width=max(1, int(r / 14)))
+        img.alpha_composite(layer.filter(ImageFilter.GaussianBlur(blur)))
+    img.convert("RGB").filter(ImageFilter.GaussianBlur(0.8)).save(path, quality=90)
+
+
+def look_and_feel(wallpaper_path, logo, package="org.houssamos.glass.desktop"):
+    """Pictures for a HoussamOS Global Theme (system_files/.../look-and-feel/<package>). The light
+    theme gets only previews; build.sh copies the splash into it from the dark one."""
+    lnf = OUT / f"usr/share/plasma/look-and-feel/{package}/contents"
     (lnf / "previews").mkdir(parents=True, exist_ok=True)
-    logo.save(lnf / "splash/images/houssamos.png", optimize=True)
+    if package == "org.houssamos.glass.desktop":
+        (lnf / "splash/images").mkdir(parents=True, exist_ok=True)
+        logo.save(lnf / "splash/images/houssamos.png", optimize=True)
 
     wp = Image.open(wallpaper_path).convert("RGBA")
     full = wp.resize((1920, round(wp.height * 1920 / wp.width)), Image.LANCZOS)
@@ -246,7 +286,7 @@ def look_and_feel(wallpaper_path, logo):
     full.convert("RGB").save(lnf / "previews/fullscreenpreview.jpg", quality=88)
     full.resize((400, round(full.height * 400 / full.width)), Image.LANCZOS).save(lnf / "previews/preview.png", optimize=True)
 
-    print("global theme: splash logo, previews")
+    print(f"global theme {package}: previews")
 
 
 def startup_sound(video):
@@ -285,6 +325,7 @@ if __name__ == "__main__":
     wallpaper(SRC / "wallpaper-light.jpg", SRC / "wallpaper-dark.jpg")
     installer_art(SRC / "wallpaper-dark.jpg", logo)
     look_and_feel(SRC / "wallpaper-dark.jpg", logo)
+    look_and_feel(SRC / "wallpaper-light.jpg", logo, "org.houssamos.glasslight.desktop")
     startup_sound(SRC / "boot-animation.mp4")
     if "--preview" in sys.argv:
         preview(icon_set, logo)

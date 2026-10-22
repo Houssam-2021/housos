@@ -2,7 +2,7 @@
     "KPlugin": {
         "Id": "houssamos-glass",
         "Name": "HoussamOS Glass",
-        "Description": "Glass with live blur: floating frosted dock, slim top bar, glass menus",
+        "Description": "Glass with live blur: floating frosted dock, slim top bar, dark glass menus",
         "Authors": [
             {
                 "Name": "Houssam"
