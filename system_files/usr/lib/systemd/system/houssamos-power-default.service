@@ -1,0 +1,11 @@
+[Unit]
+Description=HoussamOS: performance power profile on desktop PCs (first boot only)
+After=tuned.service tuned-ppd.service bazzite-hardware-setup.service
+ConditionPathExists=!/var/lib/houssamos/power-default-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/houssamos-power-default
+
+[Install]
+WantedBy=multi-user.target

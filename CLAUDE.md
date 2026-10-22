@@ -85,6 +85,28 @@ KDE pieces in `system_files/`:
 - `etc/xdg/plasma-workspace/env/houssamos-caches.sh`: at login, clears KDE's icon/theme/QML caches when
   `/usr/share/houssamos/build-id` (written by build.sh) changed.
 
+## Performance and stability
+
+Bazzite already does the big things: its own kernel with gaming patches, ntsync, newest Mesa,
+split-lock penalty off, huge `vm.max_map_count`, kyber/bfq I/O schedulers, zram, tuned power
+profiles (`-bazzite` variants), gamemode installed, dmemcg booster, uupd auto-updates that wait for
+idle, greenboot health checks, KWin allows tearing in fullscreen games (default). sched_ext
+(`scx_loader`, LAVD) is installed but Bazzite turns it off on desktops; HoussamOS leaves it off
+until it is benchmarked on Houssam's PC.
+
+HoussamOS adds (build.sh, 2026-10-22):
+- Desktop PCs (no battery) start in the performance power profile, once
+  (`houssamos-power-default.service`); laptops stay balanced
+- 10 GB NVIDIA/Mesa shader caches instead of 1 GB (`/usr/lib/environment.d/60-houssamos-gaming.conf`)
+- Off by default: Baloo file indexing, `dnf-makecache.timer`, `rpm-ostree-countme.timer`,
+  `input-remapper` daemon, KDE Connect and KUnifiedPush at login (both start when used)
+- Last checks in build.sh fail the build if the display manager or a HoussamOS look file is missing
+
+Honest limits: on Houssam's GTX 1080 Ti (Pascal, NVIDIA's legacy driver branch) DX12 games through
+VKD3D-Proton usually run slower than on Windows; DX11/Vulkan games are close; games with kernel
+anti-cheat don't run at all. Removing packages only shrinks downloads, not FPS. Claims need a
+benchmark on his PC (same games, Windows vs HoussamOS, MangoHud).
+
 ## Current design (redesign of 2026-10-21, commit 52149ea)
 
 Houssam found the previous look poor and asked for a full premium redesign keeping only his logo,

@@ -196,6 +196,26 @@ fi
 # Bazzite pins its own picks to the dock (Lutris, its Bazaar store and Portal); HoussamOS pins its
 # own in houssamos-layout-5.js instead
 rm -f /usr/share/plasma/shells/org.kde.plasma.desktop/contents/updates/bazzite-pins.js
+# Speed: nothing works in the background that a gaming desktop doesn't need. KDE's file indexer
+# (Baloo) reads through the whole home folder (and game libraries) after login; off, apps and
+# settings are still found by name, only searching inside documents goes.
+kset baloofilerc --group "Basic Settings" --key Indexing-Enabled false
+# Background jobs an image-based gaming desktop doesn't need (checked against everything the image
+# starts, 2026-10-22): dnf refreshing package lists the system never installs from (network, disk
+# and CPU while playing), Fedora's install counter, and the input remapper's always-on daemon
+# (the Input Remapper app starts it when opened). Updates (uupd), drivers, game helpers stay.
+systemctl disable dnf-makecache.timer rpm-ostree-countme.timer input-remapper.service || true
+# Apps started at login that most people never use; each still starts when its app is opened
+for app in org.kde.kdeconnect.daemon org.kde.kunifiedpush-distributor input-remapper-autoload; do
+    if [ -f "/etc/xdg/autostart/$app.desktop" ]; then
+        sed -i 's@^\[Desktop Entry\]@[Desktop Entry]\nHidden=true@' "/etc/xdg/autostart/$app.desktop"
+    fi
+done
+# Desktop PCs start in the performance power profile (once; laptops stay balanced), see
+# /usr/libexec/houssamos-power-default
+chmod 755 /usr/libexec/houssamos-power-default
+systemctl enable houssamos-power-default.service
+
 # Bazzite's look goes: its Portal app, its and Universal Blue's wallpapers and its docs shortcut.
 # Its gaming parts (Steam and game mode setup, drivers, hardware fixes, updates) stay.
 dnf5 remove -y bazzite-portal || echo "WARNING: could not remove bazzite-portal"
@@ -413,3 +433,28 @@ if ! grep -q 'plymouth/themes/houssamos/frame-1.png' /tmp/initramfs-files.txt; t
     echo "The HoussamOS boot animation is missing from the initramfs"
     exit 1
 fi
+
+### Last checks: an image that would boot to a black screen or without its desktop never ships
+dm=$(readlink -f /etc/systemd/system/display-manager.service || true)
+if [ -z "$dm" ] || [ ! -f "$dm" ]; then
+    echo "::error title=No login manager::display-manager.service points at '${dm}', which does not exist"
+    exit 1
+fi
+echo "Login manager: $dm"
+if [ "$(basename "$dm")" = "sddm.service" ] && [ -f /etc/sddm.conf.d/zz-houssamos.conf ] && \
+   [ ! -f /usr/share/sddm/themes/houssamos/Main.qml ]; then
+    echo "::error title=Login theme missing::SDDM is set to the houssamos theme, which is not installed"
+    exit 1
+fi
+for f in /usr/share/plasma/look-and-feel/org.houssamos.glass.desktop/contents/defaults \
+         /usr/share/plasma/look-and-feel/org.houssamos.glasslight.desktop/contents/defaults \
+         /usr/share/plasma/look-and-feel/org.houssamos.glasslight.desktop/contents/splash/Splash.qml \
+         /usr/share/plasma/desktoptheme/houssamos-glass/metadata.json \
+         /usr/share/plasma/desktoptheme/houssamos-glass-light/metadata.json \
+         /usr/share/icons/HoussamOS-LiquidGlass-Light/index.theme \
+         /usr/bin/plasmashell /usr/bin/kwin_wayland; do
+    if [ ! -e "$f" ]; then
+        echo "::error title=Missing desktop file::$f"
+        exit 1
+    fi
+done
