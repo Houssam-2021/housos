@@ -2,7 +2,7 @@
 # Lumi, the HoussamOS assistant (Houssam's own app, private repo Houssam-2021/Lumi): installed from
 # its pinned release into /usr/lib/lumi, started at login, Meta+L brings it up.
 # The release is private, so the build gets a read-only token as the build secret "lumi_token"
-# (repo secret LUMI_RELEASE_TOKEN). Without it the image is built without Lumi.
+# (repo secret LUMI_RELEASE_TOKEN, added 2026-10-23). Without it the image is built without Lumi.
 set -euo pipefail
 
 LUMI_VERSION=v3.5.0        # bump here to ship a new Lumi release
