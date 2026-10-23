@@ -238,6 +238,14 @@ Houssam's desktop assistant Lumi (separate repo, Python + PyQt6) customizes the 
 - Themes: `branding/make_themes.py` -> `system_files/usr/share/houssamos/themes/<slug>/` (houssamos,
   houssamos-light, tokyo-night, catppuccin-mocha/latte, nord, gruvbox, rose-pine, everforest);
   hosctl generates the KDE colour scheme and Konsole colours from the palette at apply time.
+- Lumi packaging (a0de725): `build_files/lumi.sh` (feature script) downloads the pinned release
+  (LUMI_VERSION=v3.5.0) from the private repo Houssam-2021/Lumi through the API with the build
+  secret `lumi_token` (Justfile passes repo secret LUMI_RELEASE_TOKEN via `podman build --secret`;
+  Containerfile mounts it), checks SHA256SUMS-linux.txt, installs /usr/lib/lumi + /usr/bin/lumi,
+  icon, menu entry, /etc/xdg/autostart/lumi.desktop, Meta+L (kglobalaccel desktop file; lock moves
+  to Ctrl+Alt+L, also for existing accounts via LOOK_VERSION 6). No secret = built without Lumi.
+  Careful: raising LOOK_VERSION re-applies the whole HoussamOS look and would undo a user's
+  hosctl theme; make future LOOK bumps targeted.
 - To do: phase B widgets (plasmoids os.houssam.widget.<type>: clock, date, weather, system, disk,
   network, battery, media, calendar, notes, todo, quote, countdown, steam-recent), phase C Lumi
   packaging (needs the Lumi source/release URL from Houssam), autostart + Meta+L, first-boot theme
