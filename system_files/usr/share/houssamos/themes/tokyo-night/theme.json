@@ -1,0 +1,32 @@
+{
+ "name": "Tokyo Night",
+ "author": "HoussamOS",
+ "mode": "dark",
+ "accent": "#7aa2f7",
+ "colors": {
+  "bg": "#1a1b26",
+  "fg": "#c0caf5",
+  "c0": "#15161e",
+  "c1": "#f7768e",
+  "c2": "#9ece6a",
+  "c3": "#e0af68",
+  "c4": "#7aa2f7",
+  "c5": "#bb9af7",
+  "c6": "#7dcfff",
+  "c7": "#a9b1d6",
+  "c8": "#414868",
+  "c9": "#f7768e",
+  "c10": "#9ece6a",
+  "c11": "#e0af68",
+  "c12": "#7aa2f7",
+  "c13": "#bb9af7",
+  "c14": "#7dcfff",
+  "c15": "#c0caf5"
+ },
+ "icons": "Papirus-Dark",
+ "cursor": "Bibata-Modern-Ice",
+ "font": "Inter",
+ "mono_font": "JetBrains Mono",
+ "radius": 12,
+ "wallpaper": "wallpaper.jpg"
+}

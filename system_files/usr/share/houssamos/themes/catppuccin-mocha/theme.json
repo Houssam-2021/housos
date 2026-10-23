@@ -1,0 +1,33 @@
+{
+ "name": "Catppuccin Mocha",
+ "author": "HoussamOS",
+ "mode": "dark",
+ "accent": "#cba6f7",
+ "pair": "catppuccin-latte",
+ "colors": {
+  "bg": "#1e1e2e",
+  "fg": "#cdd6f4",
+  "c0": "#45475a",
+  "c1": "#f38ba8",
+  "c2": "#a6e3a1",
+  "c3": "#f9e2af",
+  "c4": "#89b4fa",
+  "c5": "#f5c2e7",
+  "c6": "#94e2d5",
+  "c7": "#bac2de",
+  "c8": "#585b70",
+  "c9": "#f38ba8",
+  "c10": "#a6e3a1",
+  "c11": "#f9e2af",
+  "c12": "#89b4fa",
+  "c13": "#f5c2e7",
+  "c14": "#94e2d5",
+  "c15": "#a6adc8"
+ },
+ "icons": "Papirus-Dark",
+ "cursor": "Bibata-Modern-Ice",
+ "font": "Inter",
+ "mono_font": "JetBrains Mono",
+ "radius": 12,
+ "wallpaper": "wallpaper.jpg"
+}

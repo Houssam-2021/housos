@@ -1,0 +1,33 @@
+{
+ "name": "Catppuccin Latte",
+ "author": "HoussamOS",
+ "mode": "light",
+ "accent": "#8839ef",
+ "pair": "catppuccin-mocha",
+ "colors": {
+  "bg": "#eff1f5",
+  "fg": "#4c4f69",
+  "c0": "#5c5f77",
+  "c1": "#d20f39",
+  "c2": "#40a02b",
+  "c3": "#df8e1d",
+  "c4": "#1e66f5",
+  "c5": "#ea76cb",
+  "c6": "#179299",
+  "c7": "#acb0be",
+  "c8": "#6c6f85",
+  "c9": "#d20f39",
+  "c10": "#40a02b",
+  "c11": "#df8e1d",
+  "c12": "#1e66f5",
+  "c13": "#ea76cb",
+  "c14": "#179299",
+  "c15": "#bcc0cc"
+ },
+ "icons": "Papirus-Light",
+ "cursor": "Bibata-Modern-Classic",
+ "font": "Inter",
+ "mono_font": "JetBrains Mono",
+ "radius": 12,
+ "wallpaper": "wallpaper.jpg"
+}

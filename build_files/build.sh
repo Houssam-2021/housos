@@ -134,6 +134,10 @@ ln -sf houssamos.jxl /usr/share/backgrounds/default-dark.jxl
 # decoration, Bibata cursors and Tela-dark icons (Terra, which Bazzite ships but keeps switched off)
 dnf5 install -y rsms-inter-fonts jetbrains-mono-fonts-all
 dnf5 install -y --enablerepo=terra darkly bibata-cursor-theme tela-icon-theme
+# hosctl themes (Tokyo Night, Catppuccin, Nord...) use Papirus icons; hosctl falls back to the
+# HoussamOS icons if they are missing
+dnf5 install -y papirus-icon-theme || echo "WARNING: papirus-icon-theme not installed"
+chmod 755 /usr/bin/hosctl
 if command -v gtk-update-icon-cache > /dev/null; then
     for theme in /usr/share/icons/*/; do
         [ -f "${theme}index.theme" ] && gtk-update-icon-cache -qf "$theme" || true
@@ -371,6 +375,15 @@ fi
 ### Install packages
 # Packages can be installed from any enabled repo on the image (Fedora, RPM Fusion).
 # dnf5 install -y <package>
+
+### HoussamOS features: each has its own install script in build_files/ (apps, services,
+# branding clean-up); they run here, before the repositories are cleaned up
+for feature in branding-cleanup welcome timeline gamecheck gamemode privacy guest; do
+    if [ -f "/ctx/build_files/$feature.sh" ]; then
+        echo "Feature: $feature"
+        bash "/ctx/build_files/$feature.sh"
+    fi
+done
 
 ### Repository cleanup
 # bootc-image-builder reads /etc/yum.repos.d directly when it builds the installer ISO.

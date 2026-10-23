@@ -225,6 +225,39 @@ boot animation and video:
   announcements gone, liquid glass lock screen clock (Houssam: "so good"), app zoom animations ("good"),
   squircle icons with no grey boxes, purple boot animation, his cursor, HoussamOS dock apps
 
+### Lumi + hosctl (signature feature, started 2026-10-23)
+Houssam's desktop assistant Lumi (separate repo, Python + PyQt6) customizes the OS only through
+`/usr/bin/hosctl` (contract: his LUMI_HOSCTL_SPEC.md v3; Lumi reads `hosctl capabilities --json`).
+- Done (phase A): `system_files/usr/bin/hosctl` (Python, stdlib + PySide6 for drawing wallpapers):
+  theme list/current/set/generate, wallpaper, accent, mode (uses theme.json "pair"), icons, app-icon,
+  font, bar/dock position/size/autohide/style, widget types/list/add/remove/generate, setting
+  (night light, animations, blur, wobbly, cursor size, corner radius, terminal transparency),
+  undo/history/reset, `--json` everywhere, snapshots in ~/.local/state/houssamos/history.
+  Undo stops plasmashell while restoring its config files. `HOSCTL_DRY_RUN=1` for tests; an
+  offline test (temp home, dry run) passed 24/24 on Windows. Not yet run on real Plasma.
+- Themes: `branding/make_themes.py` -> `system_files/usr/share/houssamos/themes/<slug>/` (houssamos,
+  houssamos-light, tokyo-night, catppuccin-mocha/latte, nord, gruvbox, rose-pine, everforest);
+  hosctl generates the KDE colour scheme and Konsole colours from the palette at apply time.
+- To do: phase B widgets (plasmoids os.houssam.widget.<type>: clock, date, weather, system, disk,
+  network, battery, media, calendar, notes, todo, quote, countdown, steam-recent), phase C Lumi
+  packaging (needs the Lumi source/release URL from Houssam), autostart + Meta+L, first-boot theme
+  picker, phase D Lumi Link (firewall home zone, portal screen share, indicator, `hosctl link`).
+  Note: Fedora's default firewalld zone on desktops (FedoraWorkstation) already allows ports
+  1025-65535, so "home zone only" needs a zone decision.
+
+### Unfinished, uncommitted work in the working tree (2026-10-22, paused by Houssam)
+Eight subagents started roadmap items and were stopped half-way; their files are kept but NOT
+committed. Review each before committing anything (a half-finished build_files/<feature>.sh would
+run in the build). build.sh has an uncommitted hook that runs build_files/{branding-cleanup,
+welcome,timeline,gamecheck,gamemode,privacy,guest}.sh if they exist. Areas: Bazzite branding
+leftovers (Updater name, Discourse, Kickoff favorites, MOTD/ujust, GRUB, installer title), Welcome
+app (usr/share/houssamos/welcome), undo timeline (snapper + bootc rollback app), game checker
+(ProtonDB + AreWeAntiCheatYet), automatic game mode (user daemon), privacy report, guest mode,
+website in docs/ + README + signing/hosting docs + bot PR review. Check `git status`.
+Also open: the T500 shows no dock, no Control Center and no blur after updating (Intel GMA 4500 /
+ATI HD 3650; probably KWin without OpenGL compositing); waiting for KWin supportInformation and
+plasmashell journal output from Houssam (SSH or photos).
+
 ### Built 2026-10-22 (d01bbdc, checked inside the published image), not yet seen on screen
 - Dark mode switch: flips between HoussamOS Glass and the new HoussamOS Glass Light (it had switched
   to KDE's Breeze Dark); `LOOK_VERSION` 5 re-applies the HoussamOS look to existing accounts

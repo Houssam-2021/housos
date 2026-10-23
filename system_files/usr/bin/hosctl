@@ -1,0 +1,1267 @@
+#!/usr/bin/python3
+"""hosctl: change the HoussamOS look and desktop with one command.
+
+Lumi (the AI desktop assistant) drives HoussamOS through this tool only: it reads
+`hosctl capabilities --json` and runs the listed commands. The contract is LUMI_HOSCTL_SPEC.md:
+- runs as the logged-in user (no sudo); exit 0 = success; one friendly line on stdout, errors on
+  stderr; `--json` anywhere on the command line prints a JSON object instead
+- every change is snapshotted first into ~/.local/state/houssamos/history/<time>/, and
+  `hosctl undo` puts the last one back
+- running the same command twice gives the same result
+
+Themes live in /usr/share/houssamos/themes/<slug>/ and ~/.local/share/houssamos/themes/<slug>/
+(theme.json plus optional wallpaper, kde.colors, konsole.colorscheme, gtk.css).
+Desktop widgets are Plasma plasmoids named os.houssam.widget.<type>.
+
+HOSCTL_DRY_RUN=1 prints the system commands instead of running them (for testing).
+"""
+import colorsys
+import configparser
+import datetime
+import glob
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+
+VERSION = "1"
+HOME = os.path.expanduser("~")
+SYS_THEMES = "/usr/share/houssamos/themes"
+DATA = os.environ.get("XDG_DATA_HOME") or os.path.join(HOME, ".local/share")
+CONFIG = os.environ.get("XDG_CONFIG_HOME") or os.path.join(HOME, ".config")
+STATE = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.join(HOME, ".local/state"), "houssamos")
+USER_THEMES = os.path.join(DATA, "houssamos/themes")
+HISTORY = os.path.join(STATE, "history")
+CURRENT = os.path.join(STATE, "current-theme.json")
+WIDGET_PREFIX = "os.houssam.widget."
+PLASMOID_DIRS = ["/usr/share/plasma/plasmoids", os.path.join(DATA, "plasma/plasmoids")]
+DRY_RUN = os.environ.get("HOSCTL_DRY_RUN") == "1"
+KEEP_SNAPSHOTS = 50
+
+# Everything hosctl may change, relative to $HOME. A snapshot keeps a copy of each (or notes
+# that it didn't exist), so undo can put the desktop back exactly.
+SNAPSHOT_FILES = [
+    ".config/kdeglobals", ".config/kwinrc", ".config/plasmarc", ".config/kcminputrc",
+    ".config/plasma-org.kde.plasma.desktop-appletsrc", ".config/plasmashellrc",
+    ".config/kscreenlockerrc", ".config/konsolerc", ".config/ksplashrc", ".config/darklyrc",
+    ".config/gtk-3.0/settings.ini", ".config/gtk-4.0/settings.ini",
+    ".config/gtk-3.0/gtk.css", ".config/gtk-4.0/gtk.css",
+    ".config/gtk-3.0/houssamos-theme.css", ".config/gtk-4.0/houssamos-theme.css",
+    ".local/share/konsole/HoussamOS.profile", ".local/state/houssamos/current-theme.json",
+]
+PLASMA_FILES = {".config/plasma-org.kde.plasma.desktop-appletsrc", ".config/plasmashellrc"}
+
+DEFAULT_DARK, DEFAULT_LIGHT = "houssamos", "houssamos-light"
+ACCENT_NAMES = {
+    "blue": "#3b82f6", "purple": "#8b5cf6", "violet": "#8b6cff", "pink": "#ec4899", "red": "#ef4444",
+    "orange": "#f97316", "yellow": "#eab308", "gold": "#f6c177", "green": "#22c55e", "teal": "#14b8a6",
+    "cyan": "#06b6d4", "indigo": "#6366f1", "magenta": "#d946ef", "white": "#e5e7eb", "grey": "#9ca3af",
+    "gray": "#9ca3af", "houssamos": "#4c8dff",
+}
+
+
+class Fail(Exception):
+    def __init__(self, message, code=1):
+        super().__init__(message)
+        self.code = code
+
+
+JSON_OUT = False
+
+
+def done(message, **data):
+    if JSON_OUT:
+        print(json.dumps({"ok": True, "message": message, **data}, ensure_ascii=False))
+    else:
+        print(message)
+    sys.exit(0)
+
+
+# ---------------------------------------------------------------------------------------------
+# System helpers
+
+def have(cmd):
+    return shutil.which(cmd) is not None
+
+
+def run(cmd, timeout=40, input_text=None):
+    """Runs a command and returns (exit code, stdout). Never raises on failure."""
+    if DRY_RUN:
+        print("DRY-RUN: " + " ".join(cmd), file=sys.stderr)
+        return 0, ""
+    if not have(cmd[0]) and not os.path.isfile(cmd[0]):
+        return 127, ""
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, input=input_text)
+        return p.returncode, (p.stdout or "") + (p.stderr or "" if p.returncode else "")
+    except (subprocess.TimeoutExpired, OSError) as e:
+        return 124, str(e)
+
+
+def qdbus_cmd():
+    return "qdbus6" if have("qdbus6") else "qdbus"
+
+
+def plasma_js(script):
+    code, out = run([qdbus_cmd(), "org.kde.plasmashell", "/PlasmaShell",
+                     "org.kde.PlasmaShell.evaluateScript", script])
+    if code != 0:
+        raise Fail("The desktop shell (Plasma) isn't answering; is a Plasma session running?")
+    return out.strip()
+
+
+def kwrite(file, groups, key, value=None, delete=False):
+    cmd = ["kwriteconfig6", "--file", file]
+    for g in groups:
+        cmd += ["--group", g]
+    cmd += ["--key", key]
+    cmd += ["--delete"] if delete else [str(value)]
+    run(cmd)
+
+
+def kread(file, groups, key, default=""):
+    cmd = ["kreadconfig6", "--file", file]
+    for g in groups:
+        cmd += ["--group", g]
+    cmd += ["--key", key, "--default", default]
+    code, out = run(cmd)
+    return out.strip() if code == 0 and out.strip() else default
+
+
+def kglobal_notify(*changes):
+    """Tells running KDE apps that kdeglobals changed (0 palette, 1 font, 2 style, 4 icons)."""
+    for change in changes:
+        run(["dbus-send", "--session", "--type=signal", "/KGlobalSettings",
+             "org.kde.KGlobalSettings.notifyChange", f"int32:{change}", "int32:0"])
+
+
+def kwin_reconfigure():
+    run([qdbus_cmd(), "org.kde.KWin", "/KWin", "reconfigure"])
+
+
+def write_file(path, text):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
+def slugify(name):
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def safe_name(name, what):
+    if not re.fullmatch(r"[A-Za-z0-9._+ -]{1,80}", name or ""):
+        raise Fail(f"That {what} name has characters hosctl doesn't accept: {name!r}", 2)
+    return name
+
+
+# ---------------------------------------------------------------------------------------------
+# Snapshots and undo
+
+def snapshot(what, extra=()):
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    d = os.path.join(HISTORY, stamp)
+    files = {}
+    for rel in list(SNAPSHOT_FILES) + list(extra):
+        src = rel if os.path.isabs(rel) else os.path.join(HOME, rel)
+        key = os.path.relpath(src, HOME)
+        files[key] = os.path.isfile(src)
+        if files[key]:
+            dst = os.path.join(d, "files", key)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+    write_file(os.path.join(d, "manifest.json"),
+               json.dumps({"what": what, "time": time.time(), "files": files}, indent=1))
+    for old in sorted(os.listdir(HISTORY))[:-KEEP_SNAPSHOTS]:
+        shutil.rmtree(os.path.join(HISTORY, old), ignore_errors=True)
+
+
+def snapshots():
+    if not os.path.isdir(HISTORY):
+        return []
+    out = []
+    for name in sorted(os.listdir(HISTORY)):
+        try:
+            with open(os.path.join(HISTORY, name, "manifest.json"), encoding="utf-8") as f:
+                out.append((name, json.load(f)))
+        except (OSError, ValueError):
+            continue
+    return out
+
+
+def file_digest(path):
+    try:
+        with open(path, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except OSError:
+        return None
+
+
+def ini_value(path, group, key):
+    """Reads one key from a KDE ini file without KDE tools (used on snapshot copies)."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            current = None
+            for line in f:
+                line = line.strip()
+                if line.startswith("["):
+                    current = line[1:-1]
+                elif current == group and line.split("=", 1)[0].strip() == key and "=" in line:
+                    return line.split("=", 1)[1].strip()
+    except OSError:
+        pass
+    return ""
+
+
+def cmd_undo(args):
+    snaps = snapshots()
+    if not snaps:
+        raise Fail("Nothing to undo")
+    name, manifest = snaps[-1]
+    d = os.path.join(HISTORY, name)
+    changed = []
+    for rel, existed in manifest["files"].items():
+        live = os.path.join(HOME, rel)
+        saved = os.path.join(d, "files", rel)
+        if file_digest(live) != (file_digest(saved) if existed else None):
+            changed.append(rel)
+    plasma_changed = any(rel in PLASMA_FILES for rel in changed)
+    # Plasma writes its own config when it quits, so it has to be stopped while its files go back
+    if plasma_changed:
+        run(["systemctl", "--user", "stop", "plasma-plasmashell.service"], timeout=30)
+    for rel in changed:
+        live = os.path.join(HOME, rel)
+        saved = os.path.join(d, "files", rel)
+        if manifest["files"][rel]:
+            os.makedirs(os.path.dirname(live), exist_ok=True)
+            shutil.copy2(saved, live)
+        elif os.path.exists(live):
+            os.remove(live)
+    if plasma_changed:
+        run(["systemctl", "--user", "start", "plasma-plasmashell.service"], timeout=30)
+    if ".config/kdeglobals" in changed:
+        icons = ini_value(os.path.join(HOME, ".config/kdeglobals"), "Icons", "Theme")
+        if icons:
+            run(["/usr/libexec/plasma-changeicons", icons])
+        kglobal_notify(0, 1, 2, 4)
+    if ".config/kcminputrc" in changed:
+        cursor = ini_value(os.path.join(HOME, ".config/kcminputrc"), "Mouse", "cursorTheme")
+        if cursor:
+            run(["plasma-apply-cursortheme", cursor])
+    if ".config/plasmarc" in changed:
+        style = ini_value(os.path.join(HOME, ".config/plasmarc"), "Theme", "name")
+        if style:
+            run(["plasma-apply-desktoptheme", style])
+    kwin_reconfigure()
+    shutil.rmtree(d, ignore_errors=True)
+    done(f"Undid: {manifest.get('what', 'last change')}", undone=manifest.get("what"), files=changed)
+
+
+def cmd_history(args):
+    snaps = snapshots()
+    items = [{"id": n, "what": m.get("what"),
+              "time": datetime.datetime.fromtimestamp(m.get("time", 0)).strftime("%Y-%m-%d %H:%M")}
+             for n, m in snaps]
+    if JSON_OUT:
+        done(f"{len(items)} changes can be undone", history=items)
+    if not items:
+        done("No changes yet")
+    print("\n".join(f"{i['time']}  {i['what']}" for i in items))
+    sys.exit(0)
+
+
+# ---------------------------------------------------------------------------------------------
+# Colours
+
+def hex_rgb(h):
+    h = h.strip().lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    if not re.fullmatch(r"[0-9a-fA-F]{6}", h):
+        raise Fail(f"Not a colour: #{h} (use #RRGGBB)", 2)
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def rgb_hex(c):
+    return "#%02x%02x%02x" % tuple(max(0, min(255, round(v))) for v in c)
+
+
+def mix(a, b, t):
+    return tuple(a[i] + (b[i] - a[i]) * t for i in range(3))
+
+
+def luminance(c):
+    def ch(v):
+        v /= 255
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = (ch(v) for v in c)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a, b):
+    la, lb = sorted((luminance(a), luminance(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def parse_accent(value):
+    v = (value or "").strip().lower()
+    if v in ACCENT_NAMES:
+        return ACCENT_NAMES[v]
+    return rgb_hex(hex_rgb(v))
+
+
+def palette(theme):
+    """The 16 terminal colours plus bg/fg, filling in what a theme.json leaves out."""
+    c = {k: hex_rgb(v) for k, v in theme.get("colors", {}).items() if isinstance(v, str)}
+    dark = theme.get("mode", "dark") != "light"
+    bg = c.get("bg", (26, 27, 38) if dark else (240, 242, 247))
+    fg = c.get("fg", (220, 224, 236) if dark else (28, 32, 44))
+    base = [(21, 22, 30), (247, 118, 142), (158, 206, 106), (224, 175, 104),
+            (122, 162, 247), (187, 154, 247), (125, 207, 255), (169, 177, 214)]
+    out = {"bg": bg, "fg": fg}
+    for i in range(8):
+        out[f"c{i}"] = c.get(f"c{i}", base[i])
+    for i in range(8):
+        out[f"c{i + 8}"] = c.get(f"c{i + 8}", mix(out[f"c{i}"], (255, 255, 255), 0.18))
+    out["accent"] = hex_rgb(theme.get("accent") or rgb_hex(out["c4"]))
+    return out
+
+
+def kde_colors_text(theme, scheme_name):
+    """A full KDE colour scheme from a theme palette; text is kept readable (contrast first)."""
+    p = palette(theme)
+    dark = theme.get("mode", "dark") != "light"
+    bg, fg, accent = p["bg"], p["fg"], p["accent"]
+    white, black = (255, 255, 255), (0, 0, 0)
+    if contrast(bg, fg) < 4.5:
+        fg = white if dark else (20, 20, 28)
+    view = mix(bg, black, 0.18) if dark else mix(bg, white, 0.6)
+    button = mix(bg, fg, 0.10)
+    header = mix(bg, black, 0.10) if dark else mix(bg, fg, 0.05)
+    inactive = mix(fg, bg, 0.42)
+    sel_fg = white if contrast(accent, white) >= contrast(accent, (20, 20, 28)) else (20, 20, 28)
+
+    def group(back, alt, text):
+        return {
+            "BackgroundNormal": back, "BackgroundAlternate": alt, "ForegroundNormal": text,
+            "ForegroundInactive": mix(text, back, 0.42), "ForegroundActive": accent,
+            "ForegroundLink": p["c4"], "ForegroundVisited": p["c5"], "ForegroundNegative": p["c1"],
+            "ForegroundNeutral": p["c3"], "ForegroundPositive": p["c2"],
+            "DecorationFocus": accent, "DecorationHover": mix(accent, white, 0.2),
+        }
+
+    groups = {
+        "Window": group(bg, mix(bg, fg, 0.04), fg),
+        "View": group(view, mix(view, fg, 0.04), fg),
+        "Button": group(button, mix(button, fg, 0.05), fg),
+        "Header": group(header, bg, fg),
+        "Tooltip": group(mix(bg, fg, 0.06), bg, fg),
+        "Complementary": group(mix(bg, black, 0.3) if dark else (28, 30, 40),
+                               mix(bg, black, 0.2) if dark else (36, 38, 50),
+                               fg if dark else (232, 236, 244)),
+        "Selection": group(accent, mix(accent, white, 0.15), sel_fg),
+    }
+    groups["Selection"]["ForegroundInactive"] = mix(sel_fg, accent, 0.25)
+    lines = ["[General]", f"ColorScheme={scheme_name}", f"Name={theme.get('name', scheme_name)}", "",
+             "[KDE]", "contrast=4", "", "[WM]",
+             f"activeBackground={','.join(str(round(v)) for v in header)}",
+             f"activeBlend={','.join(str(round(v)) for v in header)}",
+             f"activeForeground={','.join(str(round(v)) for v in fg)}",
+             f"inactiveBackground={','.join(str(round(v)) for v in bg)}",
+             f"inactiveBlend={','.join(str(round(v)) for v in bg)}",
+             f"inactiveForeground={','.join(str(round(v)) for v in inactive)}", ""]
+    for name, keys in groups.items():
+        lines.append(f"[Colors:{name}]")
+        lines += [f"{k}={','.join(str(max(0, min(255, round(x)))) for x in v)}" for k, v in sorted(keys.items())]
+        lines.append("")
+    return "\n".join(lines)
+
+
+def konsole_scheme_text(theme, title):
+    p = palette(theme)
+    rgb = lambda c: ",".join(str(max(0, min(255, round(v)))) for v in c)
+    lines = ["[Background]", f"Color={rgb(p['bg'])}", "", "[BackgroundIntense]", f"Color={rgb(p['bg'])}", ""]
+    for i in range(8):
+        lines += [f"[Color{i}]", f"Color={rgb(p[f'c{i}'])}", "",
+                  f"[Color{i}Intense]", f"Color={rgb(p[f'c{i + 8}'])}", ""]
+    lines += ["[Foreground]", f"Color={rgb(p['fg'])}", "", "[ForegroundIntense]",
+              f"Color={rgb(mix(p['fg'], (255, 255, 255), 0.25))}", "",
+              "[General]", f"Description={title}", "Opacity=0.88", "Blur=true", ""]
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------------------------
+# Themes
+
+def theme_dirs():
+    found = {}
+    for root in (SYS_THEMES, USER_THEMES):      # user themes win over system ones with the same slug
+        for d in sorted(glob.glob(os.path.join(root, "*", "theme.json"))):
+            found[os.path.basename(os.path.dirname(d))] = os.path.dirname(d)
+    return found
+
+
+def load_theme(d):
+    try:
+        with open(os.path.join(d, "theme.json"), encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError) as e:
+        raise Fail(f"The theme in {d} is broken: {e}")
+    data.setdefault("name", os.path.basename(d))
+    return data
+
+
+def find_theme(name):
+    themes = theme_dirs()
+    slug = slugify(name)
+    if slug in themes:
+        return slug, themes[slug]
+    for s, d in themes.items():                  # also accept the display name or a unique prefix
+        if slugify(load_theme(d).get("name", "")) == slug:
+            return s, d
+    matches = [s for s in themes if s.startswith(slug) or slug in s.replace("-", "")]
+    if len(matches) == 1:
+        return matches[0], themes[matches[0]]
+    raise Fail(f"No theme '{name}' (try: hosctl theme list)")
+
+
+def current_theme():
+    try:
+        with open(CURRENT, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {"slug": DEFAULT_DARK, "name": "HoussamOS", "mode": "dark", "accent": "#4c8dff"}
+
+
+def icon_theme_installed(name, cursors=False):
+    roots = [os.path.join(HOME, ".icons"), os.path.join(DATA, "icons"), "/usr/share/icons"]
+    for r in roots:
+        d = os.path.join(r, name)
+        if cursors and os.path.isdir(os.path.join(d, "cursors")):
+            return True
+        if not cursors and os.path.isfile(os.path.join(d, "index.theme")):
+            return True
+    return False
+
+
+def set_fonts(ui=None, mono=None, size=10, mono_size=11):
+    if ui:
+        spec = f"{ui},{size},-1,5,400,0,0,0,0,0,0,0,0,0,0,1"
+        for key in ("font", "menuFont", "toolBarFont"):
+            kwrite("kdeglobals", ["General"], key, spec)
+        kwrite("kdeglobals", ["General"], "smallestReadableFont", f"{ui},{max(7, size - 2)},-1,5,400,0,0,0,0,0,0,0,0,0,0,1")
+        kwrite("kdeglobals", ["WM"], "activeFont", f"{ui},{size},-1,5,600,0,0,0,0,0,0,0,0,0,0,1")
+    if mono:
+        kwrite("kdeglobals", ["General"], "fixed", f"{mono},{size},-1,5,400,0,0,0,0,0,0,0,0,0,0,1")
+        konsole_profile(font=f"{mono},{mono_size},-1,5,400,0,0,0,0,0,0,0,0,0,0,1")
+    kglobal_notify(1)
+
+
+def konsole_profile(scheme=None, font=None):
+    """Keeps the user's copy of the HoussamOS Konsole profile, with the theme's colours/font."""
+    user = os.path.join(DATA, "konsole/HoussamOS.profile")
+    cfg = configparser.ConfigParser(interpolation=None, strict=False)
+    cfg.optionxform = str
+    for src in (user, "/usr/share/konsole/HoussamOS.profile"):
+        if os.path.isfile(src):
+            cfg.read(src, encoding="utf-8")
+            break
+    if not cfg.has_section("General"):
+        cfg["General"] = {"Name": "HoussamOS", "Parent": "FALLBACK/"}
+    if not cfg.has_section("Appearance"):
+        cfg["Appearance"] = {}
+    if scheme:
+        cfg["Appearance"]["ColorScheme"] = scheme
+    if font:
+        cfg["Appearance"]["Font"] = font
+    os.makedirs(os.path.dirname(user), exist_ok=True)
+    with open(user, "w", encoding="utf-8") as f:
+        cfg.write(f, space_around_delimiters=False)
+    kwrite("konsolerc", ["Desktop Entry"], "DefaultProfile", "HoussamOS.profile")
+
+
+def gtk_css(css_text):
+    """Theme GTK overrides go into houssamos-theme.css, imported from gtk.css by one managed line."""
+    line = '@import url("houssamos-theme.css"); /* hosctl */'
+    for ver in ("gtk-3.0", "gtk-4.0"):
+        d = os.path.join(CONFIG, ver)
+        write_file(os.path.join(d, "houssamos-theme.css"), css_text or "")
+        main = os.path.join(d, "gtk.css")
+        text = open(main, encoding="utf-8").read() if os.path.isfile(main) else ""
+        if line not in text:
+            write_file(main, line + "\n" + text)
+
+
+def screen_size():
+    code, out = run(["kscreen-doctor", "-j"], timeout=10)
+    try:
+        for o in json.loads(out).get("outputs", []):
+            if o.get("enabled") and o.get("currentModeId"):
+                for m in o.get("modes", []):
+                    if m.get("id") == o["currentModeId"]:
+                        return int(m["size"]["width"]), int(m["size"]["height"])
+    except (ValueError, KeyError, TypeError):
+        pass
+    return 3840, 2160
+
+
+def render_html(html_path, out_png):
+    """Renders a Lumi/AI-made HTML wallpaper to PNG at the screen size."""
+    w, h = screen_size()
+    for browser in ("chromium-browser", "chromium", "google-chrome", "google-chrome-stable"):
+        if have(browser):
+            code, _ = run([browser, "--headless=new", "--disable-gpu", "--hide-scrollbars",
+                           f"--window-size={w},{h}", f"--screenshot={out_png}", "file://" + html_path],
+                          timeout=90)
+            if code == 0 and os.path.isfile(out_png):
+                return out_png
+    # Qt WebEngine is part of the image (used by KDE apps); render with it if PySide6 has it
+    script = (
+        "import sys\n"
+        "from PySide6.QtCore import QUrl, QTimer, QSize\n"
+        "from PySide6.QtWidgets import QApplication\n"
+        "from PySide6.QtWebEngineWidgets import QWebEngineView\n"
+        "app = QApplication(sys.argv)\n"
+        "v = QWebEngineView(); v.resize(QSize(int(sys.argv[3]), int(sys.argv[4])))\n"
+        "def shot():\n"
+        "    v.grab().save(sys.argv[2]); app.quit()\n"
+        "v.loadFinished.connect(lambda ok: QTimer.singleShot(800, shot))\n"
+        "v.load(QUrl.fromLocalFile(sys.argv[1])); v.show()\n"
+        "QTimer.singleShot(60000, app.quit)\n"
+        "app.exec()\n")
+    env_ok = run(["python3", "-c", "import PySide6.QtWebEngineWidgets"], timeout=20)[0] == 0
+    if env_ok:
+        run(["python3", "-c", script, html_path, out_png, str(w), str(h)], timeout=90)
+        if os.path.isfile(out_png):
+            return out_png
+    raise Fail("Couldn't render the HTML wallpaper (no Chromium or Qt WebEngine found)")
+
+
+def wave_wallpaper(theme, out_png):
+    """A smooth layered-wave wallpaper in the theme's colours (Qt drawing, no browser needed)."""
+    p = palette(theme)
+    dark = theme.get("mode", "dark") != "light"
+    w, h = screen_size()
+    stops = {
+        "top": rgb_hex(mix(p["bg"], (0, 0, 0), 0.35) if dark else mix(p["bg"], (255, 255, 255), 0.5)),
+        "glow": rgb_hex(mix(p["bg"], p["accent"], 0.35 if dark else 0.18)),
+        "layers": [rgb_hex(mix(p["bg"], c, t)) for c, t in
+                   ((p["accent"], 0.75), (p["c5"], 0.6), (p["c4"], 0.45), (p["accent"], 0.25), (p["bg"], 0.0))],
+        "dark": dark,
+    }
+    script = r'''
+import json, math, sys
+from PySide6.QtCore import Qt, QPointF
+from PySide6.QtGui import QGuiApplication, QImage, QPainter, QLinearGradient, QRadialGradient, QPainterPath, QColor
+app = QGuiApplication(sys.argv[:1] + ["-platform", "offscreen"])
+s = json.loads(sys.argv[2]); w, h = int(sys.argv[3]), int(sys.argv[4])
+img = QImage(w, h, QImage.Format_RGB32); p = QPainter(img); p.setRenderHint(QPainter.Antialiasing)
+g = QLinearGradient(0, 0, 0, h); g.setColorAt(0, QColor(s["top"])); g.setColorAt(0.45, QColor(s["glow"])); g.setColorAt(1, QColor(s["layers"][-1]))
+p.fillRect(0, 0, w, h, g)
+r = QRadialGradient(QPointF(w * 0.62, h * 0.42), w * 0.45); c = QColor(s["glow"]); c.setAlpha(150); r.setColorAt(0, c); c.setAlpha(0); r.setColorAt(1, c)
+p.fillRect(0, 0, w, h, r)
+spec = [(0.38, 0.06, 0.8, 0.4), (0.49, 0.075, 0.65, 2.1), (0.6, 0.06, 1.05, 3.6), (0.71, 0.055, 0.75, 1.2), (0.83, 0.04, 1.3, 4.4)]
+for i, (edge, amp, waves, phase) in enumerate(spec):
+    path = QPainterPath(); path.moveTo(0, h)
+    for x in range(0, w + 8, 8):
+        u = x / w
+        y = (edge + amp * math.sin(2 * math.pi * waves * u + phase) + amp * 0.35 * math.sin(2 * math.pi * waves * 2.3 * u + phase * 1.7 + i)) * h
+        path.lineTo(x, y)
+    path.lineTo(w, h); path.closeSubpath()
+    base = QColor(s["layers"][i]); lg = QLinearGradient(0, edge * h - amp * h, 0, h)
+    lg.setColorAt(0, base.lighter(118 if s["dark"] else 104)); lg.setColorAt(1, base.darker(160 if s["dark"] else 108))
+    p.fillPath(path, lg)
+    rim = QColor(255, 255, 255, 70 if s["dark"] else 120); p.setPen(rim); p.drawPath(path); p.setPen(Qt.NoPen)
+p.end(); img.save(sys.argv[1])
+'''
+    run(["python3", "-c", script, out_png, json.dumps(stops), str(w), str(h)], timeout=90)
+    if not DRY_RUN and not os.path.isfile(out_png):
+        raise Fail("Couldn't draw the theme's wallpaper (PySide6 missing?)")
+    return out_png
+
+
+def wallpaper_set(path):
+    if not DRY_RUN and not os.path.exists(path):
+        raise Fail(f"No such image: {path}")
+    code, out = run(["plasma-apply-wallpaperimage", path])
+    if code not in (0,) and not DRY_RUN:
+        raise Fail(f"Plasma refused the wallpaper: {out.strip() or path}")
+    url = "file://" + path + ("/" if os.path.isdir(path) and not path.endswith("/") else "")
+    kwrite("kscreenlockerrc", ["Greeter", "Wallpaper", "org.kde.image", "General"], "Image", url)
+    kwrite("kscreenlockerrc", ["Greeter"], "WallpaperPlugin", "org.kde.image")
+
+
+def apply_accent(hexcolor):
+    run(["plasma-apply-colorscheme", "--accent-color", hexcolor])
+
+
+def apply_theme(slug, d, theme):
+    dark = theme.get("mode", "dark") != "light"
+    notes = []
+    # Colours: a named system scheme, the theme's own kde.colors, or one made from its palette
+    scheme = theme.get("color_scheme")
+    if not scheme:
+        scheme = "HoussamOS" + "".join(part.capitalize() for part in slug.split("-"))
+        own = os.path.join(d, "kde.colors")
+        text = open(own, encoding="utf-8").read() if os.path.isfile(own) else kde_colors_text(theme, scheme)
+        text = re.sub(r"(?m)^ColorScheme=.*$", f"ColorScheme={scheme}", text)
+        write_file(os.path.join(DATA, "color-schemes", scheme + ".colors"), text)
+    run(["plasma-apply-colorscheme", scheme])
+    accent = parse_accent(theme.get("accent") or rgb_hex(palette(theme)["c4"]))
+    apply_accent(accent)
+    # Panel and menu glass in the matching light or dark style
+    style = theme.get("plasma_theme") or ("houssamos-glass" if dark else "houssamos-glass-light")
+    run(["plasma-apply-desktoptheme", style])
+    icons = theme.get("icons")
+    if not icons or not icon_theme_installed(icons):
+        if icons:
+            notes.append(f"icon theme {icons} isn't installed")
+        icons = "HoussamOS-LiquidGlass" if dark else "HoussamOS-LiquidGlass-Light"
+    run(["/usr/libexec/plasma-changeicons", icons])
+    cursor = theme.get("cursor")
+    if cursor and icon_theme_installed(cursor, cursors=True):
+        run(["plasma-apply-cursortheme", cursor])
+    set_fonts(theme.get("font"), theme.get("mono_font"))
+    # Terminal colours
+    kscheme = theme.get("konsole_scheme")
+    if not kscheme:
+        kscheme = "HoussamOS-" + slug
+        own = os.path.join(d, "konsole.colorscheme")
+        text = open(own, encoding="utf-8").read() if os.path.isfile(own) else konsole_scheme_text(theme, theme["name"])
+        write_file(os.path.join(DATA, "konsole", kscheme + ".colorscheme"), text)
+    konsole_profile(scheme=kscheme)
+    gtk_file = os.path.join(d, "gtk.css")
+    gtk_css(open(gtk_file, encoding="utf-8").read() if os.path.isfile(gtk_file) else "")
+    # Wallpaper: a file in the theme, an absolute path (image or wallpaper package), HTML, or drawn
+    wp = theme.get("wallpaper")
+    target = None
+    if wp:
+        target = wp if os.path.isabs(wp) else os.path.join(d, wp)
+        if target.endswith(".html"):
+            target = render_html(target, os.path.join(DATA, "houssamos/wallpapers", f"{slug}.png"))
+    if not target or not (os.path.exists(target) or DRY_RUN):
+        target = wave_wallpaper(theme, os.path.join(DATA, "houssamos/wallpapers", f"{slug}.png"))
+    wallpaper_set(target)
+    if theme.get("radius") is not None:
+        set_corner_radius(theme["radius"])
+    kwin_reconfigure()
+    kglobal_notify(0, 2)
+    state = {"slug": slug, "name": theme["name"], "mode": "dark" if dark else "light", "accent": accent,
+             "colors": {k: rgb_hex(v) for k, v in palette(theme).items()},
+             "font": theme.get("font"), "mono_font": theme.get("mono_font"), "radius": theme.get("radius"),
+             "wallpaper": target}
+    write_file(CURRENT, json.dumps(state, indent=1))
+    write_file(os.path.join(STATE, "current-theme"), slug + "\n")
+    return state, notes
+
+
+def set_corner_radius(px):
+    """Window corner radius for the Darkly title bars (best effort: Darkly's own setting)."""
+    px = max(0, min(24, int(px)))
+    kwrite("darklyrc", ["Common"], "CornerRadius", px)
+
+
+def cmd_theme(args):
+    sub = args[0] if args else ""
+    if sub == "list":
+        themes = theme_dirs()
+        items = []
+        for s, d in themes.items():
+            t = load_theme(d)
+            items.append({"slug": s, "name": t.get("name", s), "mode": t.get("mode", "dark"),
+                          "accent": t.get("accent"), "custom": d.startswith(USER_THEMES)})
+        if JSON_OUT:
+            done(f"{len(items)} themes", themes=items)
+        print("\n".join(f"{i['slug']}  ({i['name']}, {i['mode']})" for i in items))
+        sys.exit(0)
+    if sub == "current":
+        cur = current_theme()
+        done(cur.get("slug", DEFAULT_DARK), **{"theme": cur})
+    if sub == "set":
+        name = " ".join(args[1:]).strip()
+        if not name:
+            raise Fail("usage: hosctl theme set <name>", 2)
+        slug, d = find_theme(name)
+        theme = load_theme(d)
+        snapshot(f"theme {slug}")
+        state, notes = apply_theme(slug, d, theme)
+        extra = f" ({'; '.join(notes)})" if notes else ""
+        done(f"Theme '{theme['name']}' applied ✨{extra}", theme=state)
+    if sub == "generate":
+        return theme_generate(args[1:])
+    raise Fail("usage: hosctl theme list|current|set <name>|generate \"<idea>\"", 2)
+
+
+# Words that steer a generated theme when no exact palette is given
+HUES = {"red": 0, "crimson": 350, "rose": 340, "pink": 330, "magenta": 300, "purple": 275, "violet": 265,
+        "lavender": 255, "indigo": 235, "blue": 220, "ocean": 205, "sea": 200, "sky": 200, "ice": 195,
+        "cyan": 185, "teal": 170, "mint": 155, "forest": 130, "green": 120, "nature": 110, "lime": 85,
+        "gold": 45, "yellow": 50, "sun": 40, "amber": 38, "sunset": 25, "orange": 25, "autumn": 22,
+        "coffee": 28, "brown": 25, "desert": 35, "fire": 10, "lava": 8, "cherry": 345, "neon": 300,
+        "cyberpunk": 310, "space": 250, "galaxy": 265, "night": 230, "midnight": 230, "matrix": 125}
+
+
+def theme_generate(args):
+    """Builds a new theme folder from an idea (or an exact palette from Lumi's AI) and applies it.
+
+    hosctl theme generate "<idea>" [--palette '<json colors>'] [--mode dark|light]
+                          [--accent #hex] [--name "<name>"] [--html <wallpaper.html>]
+    """
+    idea, opts = [], {}
+    it = iter(args)
+    for a in it:
+        if a in ("--palette", "--mode", "--accent", "--name", "--html", "--wallpaper"):
+            opts[a[2:]] = next(it, "")
+        else:
+            idea.append(a)
+    idea = " ".join(idea).strip()
+    if not idea and "palette" not in opts:
+        raise Fail('usage: hosctl theme generate "<idea>" [--palette JSON] [--mode dark|light]', 2)
+    words = re.findall(r"[a-z]+", idea.lower())
+    mode = opts.get("mode") or ("light" if {"light", "day", "pastel", "paper", "white", "bright", "latte"} & set(words) else "dark")
+    dark = mode != "light"
+    hue = next((HUES[w] for w in words if w in HUES), None)
+    if hue is None:
+        hue = int(hashlib.sha256(idea.encode()).hexdigest()[:4], 16) % 360
+    sat = 0.35 if {"pastel", "soft", "calm", "muted"} & set(words) else (0.85 if {"neon", "cyberpunk", "vivid"} & set(words) else 0.6)
+
+    def hsl(hh, s, l):
+        r, g, b = colorsys.hls_to_rgb((hh % 360) / 360, l, s)
+        return rgb_hex((r * 255, g * 255, b * 255))
+
+    colors = {
+        "bg": hsl(hue, sat * 0.35, 0.10 if dark else 0.95), "fg": hsl(hue, 0.15, 0.88 if dark else 0.16),
+        "c0": hsl(hue, sat * 0.3, 0.07 if dark else 0.85), "c1": hsl(355, sat, 0.65 if dark else 0.45),
+        "c2": hsl(120, sat * 0.8, 0.62 if dark else 0.38), "c3": hsl(42, sat, 0.65 if dark else 0.42),
+        "c4": hsl(hue, sat, 0.68 if dark else 0.45), "c5": hsl(hue + 40, sat, 0.72 if dark else 0.48),
+        "c6": hsl(hue - 30, sat, 0.70 if dark else 0.42), "c7": hsl(hue, 0.12, 0.75 if dark else 0.30),
+    }
+    if "palette" in opts:
+        try:
+            given = json.loads(opts["palette"])
+            colors.update({k: rgb_hex(hex_rgb(v)) for k, v in given.items() if isinstance(v, str)})
+        except (ValueError, Fail) as e:
+            raise Fail(f"--palette must be a JSON object of #RRGGBB colours ({e})", 2)
+    accent = parse_accent(opts["accent"]) if opts.get("accent") else colors["c4"]
+    name = opts.get("name") or (idea.title()[:40] if idea else "My Theme")
+    slug = slugify(name) or "custom"
+    d = os.path.join(USER_THEMES, slug)
+    theme = {"name": name, "author": "Lumi", "idea": idea, "mode": mode, "accent": accent, "colors": colors,
+             "font": "Inter", "mono_font": "JetBrains Mono", "icons": "Papirus-Dark" if dark else "Papirus-Light",
+             "cursor": "Bibata-Modern-Ice" if dark else "Bibata-Modern-Classic", "radius": 12}
+    os.makedirs(d, exist_ok=True)
+    if opts.get("html"):
+        src = os.path.realpath(opts["html"])
+        if not os.path.isfile(src):
+            raise Fail(f"No such file: {opts['html']}")
+        shutil.copy(src, os.path.join(d, "wallpaper.html"))
+        theme["wallpaper"] = "wallpaper.html"
+    elif opts.get("wallpaper"):
+        src = os.path.realpath(opts["wallpaper"])
+        if not os.path.isfile(src):
+            raise Fail(f"No such file: {opts['wallpaper']}")
+        ext = os.path.splitext(src)[1].lower() or ".png"
+        shutil.copy(src, os.path.join(d, "wallpaper" + ext))
+        theme["wallpaper"] = "wallpaper" + ext
+    else:
+        theme["wallpaper"] = wave_wallpaper(theme, os.path.join(d, "wallpaper.png")) and "wallpaper.png"
+    write_file(os.path.join(d, "kde.colors"), kde_colors_text(theme, "HoussamOS" + "".join(x.capitalize() for x in slug.split("-"))))
+    write_file(os.path.join(d, "konsole.colorscheme"), konsole_scheme_text(theme, name))
+    write_file(os.path.join(d, "theme.json"), json.dumps(theme, indent=1))
+    snapshot(f"theme generate {slug}")
+    state, notes = apply_theme(slug, d, theme)
+    done(f"Made and applied the theme '{name}' ✨", theme=state, folder=d)
+
+
+# ---------------------------------------------------------------------------------------------
+# Single settings
+
+def cmd_wallpaper(args):
+    if len(args) < 2 or args[0] != "set":
+        raise Fail("usage: hosctl wallpaper set <file>", 2)
+    path = os.path.realpath(os.path.expanduser(" ".join(args[1:])))
+    if path.endswith(".html"):
+        snapshot("wallpaper")
+        path = render_html(path, os.path.join(DATA, "houssamos/wallpapers", "custom-" + str(int(time.time())) + ".png"))
+    else:
+        snapshot("wallpaper")
+    wallpaper_set(path)
+    done("Wallpaper set 🖼️", wallpaper=path)
+
+
+def cmd_accent(args):
+    if len(args) < 2 or args[0] != "set":
+        raise Fail("usage: hosctl accent set <#RRGGBB|name>", 2)
+    color = parse_accent(args[1])
+    snapshot(f"accent {color}")
+    apply_accent(color)
+    cur = current_theme()
+    cur["accent"] = color
+    write_file(CURRENT, json.dumps(cur, indent=1))
+    done(f"Accent colour {color} 🎨", accent=color)
+
+
+def cmd_mode(args):
+    want = args[0] if args else ""
+    if want not in ("dark", "light"):
+        raise Fail("usage: hosctl mode dark|light", 2)
+    cur = current_theme()
+    if cur.get("mode") == want:
+        done(f"Already in {want} mode", mode=want)
+    target = None
+    try:
+        t = load_theme(find_theme(cur.get("slug", DEFAULT_DARK))[1])
+        target = t.get("pair")                       # e.g. catppuccin-mocha <-> catppuccin-latte
+    except Fail:
+        pass
+    target = target or (DEFAULT_LIGHT if want == "light" else DEFAULT_DARK)
+    slug, d = find_theme(target)
+    theme = load_theme(d)
+    snapshot(f"mode {want}")
+    state, _ = apply_theme(slug, d, theme)
+    done(f"{want.capitalize()} mode on ({theme['name']})", mode=want, theme=state)
+
+
+def list_icon_themes():
+    names = set()
+    for r in (os.path.join(HOME, ".icons"), os.path.join(DATA, "icons"), "/usr/share/icons"):
+        for idx in glob.glob(os.path.join(r, "*", "index.theme")):
+            d = os.path.dirname(idx)
+            text = open(idx, encoding="utf-8", errors="replace").read()
+            if "Directories=" in text and not re.search(r"(?m)^Hidden=true", text):
+                names.add(os.path.basename(d))
+    return sorted(names)
+
+
+def cmd_icons(args):
+    sub = args[0] if args else ""
+    if sub == "list":
+        names = list_icon_themes()
+        if JSON_OUT:
+            done(f"{len(names)} icon themes", icons=names)
+        print("\n".join(names))
+        sys.exit(0)
+    if sub == "set" and len(args) > 1:
+        name = safe_name(" ".join(args[1:]), "icon theme")
+        if not icon_theme_installed(name):
+            raise Fail(f"Icon theme '{name}' isn't installed (try: hosctl icons list)")
+        snapshot(f"icons {name}")
+        run(["/usr/libexec/plasma-changeicons", name])
+        done(f"Icon theme {name}", icons=name)
+    raise Fail("usage: hosctl icons list|set <icon-theme>", 2)
+
+
+def find_desktop_file(app):
+    app_l = app.lower().removesuffix(".desktop")
+    dirs = [os.path.join(DATA, "applications"), "/var/lib/flatpak/exports/share/applications",
+            os.path.join(DATA, "flatpak/exports/share/applications"), "/usr/share/applications"]
+    candidates = []
+    for d in dirs:
+        candidates += glob.glob(os.path.join(d, "*.desktop"))
+    for f in candidates:                                  # exact id first, then id ending, then Name
+        if os.path.basename(f).lower().removesuffix(".desktop") == app_l:
+            return f
+    for f in candidates:
+        if os.path.basename(f).lower().removesuffix(".desktop").endswith("." + app_l):
+            return f
+    for f in candidates:
+        if ini_value(f, "Desktop Entry", "Name").lower() == app_l:
+            return f
+    raise Fail(f"No app called '{app}'")
+
+
+def cmd_app_icon(args):
+    sub = args[0] if args else ""
+    if sub == "set" and len(args) >= 3:
+        src = find_desktop_file(args[1])
+        png = os.path.realpath(os.path.expanduser(args[2]))
+        if not os.path.isfile(png):
+            raise Fail(f"No such image: {args[2]}")
+        name = os.path.basename(src)
+        dst = os.path.join(DATA, "applications", name)
+        icon_copy = os.path.join(DATA, "houssamos/app-icons", name.removesuffix(".desktop") + os.path.splitext(png)[1])
+        snapshot(f"app-icon {name}", extra=[dst])
+        os.makedirs(os.path.dirname(icon_copy), exist_ok=True)
+        shutil.copy(png, icon_copy)
+        text = open(src, encoding="utf-8", errors="replace").read()
+        text = re.sub(r"(?m)^Icon=.*$", f"Icon={icon_copy}", text, count=1)
+        if "X-HoussamOS-Icon-Override" not in text:
+            text = text.replace("[Desktop Entry]", "[Desktop Entry]\nX-HoussamOS-Icon-Override=true", 1)
+        write_file(dst, text)
+        run(["kbuildsycoca6"], timeout=60)
+        done(f"New icon for {ini_value(dst, 'Desktop Entry', 'Name') or name}", app=name, icon=icon_copy)
+    if sub == "reset" and len(args) >= 2:
+        user_dir = os.path.join(DATA, "applications")
+        name = os.path.basename(find_desktop_file(args[1]))
+        dst = os.path.join(user_dir, name)
+        if not os.path.isfile(dst) or "X-HoussamOS-Icon-Override=true" not in open(dst, encoding="utf-8", errors="replace").read():
+            done(f"{args[1]} already has its normal icon")
+        snapshot(f"app-icon reset {name}", extra=[dst])
+        os.remove(dst)
+        run(["kbuildsycoca6"], timeout=60)
+        done(f"{args[1]} has its normal icon again", app=name)
+    raise Fail("usage: hosctl app-icon set <app> <png> | reset <app>", 2)
+
+
+def cmd_font(args):
+    if len(args) < 2 or args[0] != "set":
+        raise Fail('usage: hosctl font set "<family>" [size]', 2)
+    rest = args[1:]
+    size = 10
+    if len(rest) > 1 and rest[-1].isdigit():
+        size = max(6, min(24, int(rest[-1])))
+        rest = rest[:-1]
+    family = safe_name(" ".join(rest), "font")
+    code, out = run(["fc-list", ":", "family"], timeout=20)
+    families = {f.strip().lower() for line in out.splitlines() for f in line.split(",")}
+    if code == 0 and not DRY_RUN and family.lower() not in families:
+        raise Fail(f"The font '{family}' isn't installed")
+    code, mono = run(["fc-list", f":family={family}:spacing=mono", "family"], timeout=20)
+    is_mono = bool(mono.strip()) and not DRY_RUN
+    snapshot(f"font {family} {size}")
+    set_fonts(ui=None if is_mono else family, mono=family if is_mono else None, size=size)
+    where = "terminal" if is_mono else "interface"
+    done(f"Font set to {family} {size} ({where})", font=family, size=size, monospace=is_mono)
+
+
+def panel_js(selector):
+    """JavaScript that picks the top bar ("bar") or the dock ("dock") among Plasma's panels."""
+    is_dock = "p.widgets().some(function (w) { return w.type.indexOf('taskmanager') >= 0 || w.type.indexOf('icontasks') >= 0; })"
+    pick = f"({is_dock})" if selector == "dock" else f"!({is_dock})"
+    return ("var all = panels(); var ps = all.filter(function (p) { return " + pick + "; });"
+            " if (ps.length == 0 && all.length == 1) ps = all;")
+
+
+def cmd_panel(which, args):
+    sub = args[0] if args else ""
+    val = args[1] if len(args) > 1 else ""
+    if sub == "position" and val in ("top", "bottom", "left", "right"):
+        body, msg = f"p.location = '{val}';", f"{which.capitalize()} moved to the {val}"
+    elif sub == "size" and val.isdigit() and 16 <= int(val) <= 160:
+        body, msg = f"p.height = {int(val)};", f"{which.capitalize()} is {val} px tall"
+    elif sub == "autohide" and val in ("on", "off"):
+        mode = "autohide" if val == "on" else ("dodgewindows" if which == "dock" else "none")
+        body, msg = f"p.hiding = '{mode}';", f"{which.capitalize()} auto-hide {val}"
+    elif sub == "style" and val in ("floating", "attached"):
+        body, msg = f"p.floating = {'true' if val == 'floating' else 'false'};", f"{which.capitalize()} style: {val}"
+    else:
+        raise Fail(f"usage: hosctl {which} position top|bottom|left|right | size <px> | autohide on|off | style floating|attached", 2)
+    snapshot(f"{which} {sub} {val}")
+    out = plasma_js(panel_js(which) + " ps.forEach(function (p) { " + body + " }); print(ps.length);")
+    if out.strip() == "0":
+        raise Fail(f"Couldn't find the {which} on this desktop")
+    done(msg)
+
+
+SETTINGS = {
+    "night-light": "on|off", "night-light-temp": "<2500-6500 K>", "animations": "on|off|fast|normal|slow",
+    "blur": "on|off", "wobbly-windows": "on|off", "cursor-size": "<24-96>", "corner-radius": "<0-24 px>",
+    "transparency": "on|off (terminal background)",
+}
+
+
+def cmd_setting(args):
+    if args[:1] == ["list"]:
+        if JSON_OUT:
+            done(f"{len(SETTINGS)} settings", settings=SETTINGS)
+        print("\n".join(f"{k}  {v}" for k, v in SETTINGS.items()))
+        sys.exit(0)
+    if len(args) < 3 or args[0] != "set" or args[1] not in SETTINGS:
+        raise Fail("usage: hosctl setting set <key> <value> (keys: " + ", ".join(SETTINGS) + ")", 2)
+    key, val = args[1], args[2].lower()
+    onoff = {"on": "true", "off": "false", "true": "true", "false": "false", "yes": "true", "no": "false"}
+
+    def need(ok):
+        if not ok:
+            raise Fail(f"'{val}' isn't a value for {key} ({SETTINGS[key]})", 2)
+
+    snapshot(f"setting {key} {val}")
+    if key == "night-light":
+        need(val in onoff)
+        kwrite("kwinrc", ["NightColor"], "Active", onoff[val])
+        kwrite("kwinrc", ["NightColor"], "Mode", "Constant")
+        kwin_reconfigure()
+    elif key == "night-light-temp":
+        need(val.isdigit() and 2500 <= int(val) <= 6500)
+        kwrite("kwinrc", ["NightColor"], "NightTemperature", int(val))
+        kwin_reconfigure()
+    elif key == "animations":
+        factors = {"off": 0, "fast": 0.5, "on": 1, "normal": 1, "slow": 2}
+        need(val in factors)
+        kwrite("kdeglobals", ["KDE"], "AnimationDurationFactor", factors[val])
+        kglobal_notify(3)
+        kwin_reconfigure()
+    elif key in ("blur", "wobbly-windows"):
+        need(val in onoff)
+        plugin = "blurEnabled" if key == "blur" else "wobblywindowsEnabled"
+        kwrite("kwinrc", ["Plugins"], plugin, onoff[val])
+        kwin_reconfigure()
+    elif key == "cursor-size":
+        need(val.isdigit() and 24 <= int(val) <= 96)
+        theme = kread("kcminputrc", ["Mouse"], "cursorTheme", "HoussamOS-Cursor")
+        run(["plasma-apply-cursortheme", "--size", val, theme])
+    elif key == "corner-radius":
+        need(val.isdigit() and 0 <= int(val) <= 24)
+        set_corner_radius(int(val))
+        kwin_reconfigure()
+    elif key == "transparency":
+        need(val in onoff)
+        cur = current_theme()
+        scheme = os.path.join(DATA, "konsole", f"HoussamOS-{cur.get('slug', DEFAULT_DARK)}.colorscheme")
+        if os.path.isfile(scheme):
+            text = open(scheme, encoding="utf-8").read()
+            text = re.sub(r"(?m)^Opacity=.*$", "Opacity=" + ("0.88" if onoff[val] == "true" else "1"), text)
+            write_file(scheme, text)
+    done(f"{key} set to {val}", key=key, value=val)
+
+
+def cmd_reset(args):
+    snapshot("reset to the HoussamOS look")
+    run(["plasma-apply-lookandfeel", "--apply", "org.houssamos.glass.desktop"], timeout=60)
+    kwrite("kdeglobals", ["General"], "AccentColor", delete=True)
+    kwrite("kdeglobals", ["General"], "LastUsedCustomAccentColor", delete=True)
+    for f in (os.path.join(DATA, "konsole/HoussamOS.profile"),):
+        if os.path.isfile(f):
+            os.remove(f)
+    gtk_css("")
+    wallpaper_set("/usr/share/wallpapers/HoussamOS")
+    slug, d = find_theme(DEFAULT_DARK)
+    t = load_theme(d)
+    write_file(CURRENT, json.dumps({"slug": slug, "name": t["name"], "mode": "dark", "accent": t.get("accent"),
+                                    "colors": {k: rgb_hex(v) for k, v in palette(t).items()}}, indent=1))
+    kglobal_notify(0, 1, 2, 4)
+    kwin_reconfigure()
+    done("Back to the HoussamOS look")
+
+
+# ---------------------------------------------------------------------------------------------
+# Desktop widgets (Plasma plasmoids os.houssam.widget.<type>)
+
+def widget_types():
+    types = {}
+    for root in PLASMOID_DIRS:
+        for meta in glob.glob(os.path.join(root, WIDGET_PREFIX + "*", "metadata.json")):
+            pkg = os.path.basename(os.path.dirname(meta))
+            try:
+                with open(meta, encoding="utf-8") as f:
+                    info = json.load(f).get("KPlugin", {})
+            except (OSError, ValueError):
+                info = {}
+            types[pkg[len(WIDGET_PREFIX):]] = info.get("Description") or info.get("Name") or ""
+    return dict(sorted(types.items()))
+
+
+def cmd_widget(args):
+    sub = args[0] if args else ""
+    if sub == "types":
+        types = widget_types()
+        if JSON_OUT:
+            done(f"{len(types)} widget types", types=types)
+        print("\n".join(f"{k}  {v}" for k, v in types.items()) or "No widget types installed")
+        sys.exit(0)
+    if sub == "list":
+        out = plasma_js("desktops().forEach(function (d) { d.widgets().forEach(function (w) {"
+                        f" if (w.type.indexOf('{WIDGET_PREFIX}') == 0) print(w.id + ' ' + w.type.substring({len(WIDGET_PREFIX)})); }}); }});")
+        items = [{"id": int(l.split()[0]), "type": l.split()[1]} for l in out.splitlines() if len(l.split()) == 2 and l.split()[0].isdigit()]
+        if JSON_OUT:
+            done(f"{len(items)} widgets on the desktop", widgets=items)
+        print("\n".join(f"{i['id']}  {i['type']}" for i in items) or "No widgets on the desktop")
+        sys.exit(0)
+    if sub == "add" and len(args) > 1:
+        wtype = slugify(args[1])
+        if wtype not in widget_types():
+            raise Fail(f"No widget type '{args[1]}' (try: hosctl widget types)")
+        x, y, options = None, None, {}
+        it = iter(args[2:])
+        for a in it:
+            if a == "--x":
+                x = int(next(it, "0"))
+            elif a == "--y":
+                y = int(next(it, "0"))
+            elif a == "--options":
+                try:
+                    options = json.loads(next(it, "{}"))
+                except ValueError:
+                    raise Fail("--options must be JSON, e.g. '{\"city\": \"Oujda\"}'", 2)
+        snapshot(f"widget add {wtype}")
+        pos = f"{x if x is not None else 'null'}, {y if y is not None else 'null'}"
+        cfg = "".join(f"w.writeConfig({json.dumps(str(k))}, {json.dumps(v)});" for k, v in options.items())
+        js = ("var d = desktops()[0]; var n = d.widgets().length;"
+              f" var px = [{pos}]; var x = px[0] === null ? 80 + (n % 4) * 360 : px[0];"
+              " var y = px[1] === null ? 80 + Math.floor(n / 4) * 240 : px[1];"
+              f" var w = d.addWidget('{WIDGET_PREFIX}{wtype}', x, y, 320, 200);"
+              f" w.currentConfigGroup = ['General']; {cfg} print(w.id);")
+        wid = plasma_js(js)
+        done(f"Added a {wtype} widget 🧩", id=int(wid) if wid.isdigit() else wid, type=wtype)
+    if sub == "remove" and len(args) > 1:
+        target = args[1]
+        cond = f"w.id == {int(target)}" if target.isdigit() else f"w.type == '{WIDGET_PREFIX}{slugify(target)}'"
+        snapshot(f"widget remove {target}")
+        out = plasma_js("var n = 0; desktops().forEach(function (d) { d.widgets().forEach(function (w) {"
+                        f" if ({cond}) {{ w.remove(); n++; }} }}); }}); print(n);")
+        if out.strip() == "0":
+            raise Fail(f"No widget '{target}' on the desktop")
+        done(f"Removed {out.strip()} widget(s)", removed=int(out) if out.strip().isdigit() else out)
+    if sub == "generate":
+        return widget_generate(args[1:])
+    raise Fail("usage: hosctl widget types|list|add <type> [--x N --y N --options JSON]|remove <id|type>|generate \"<idea>\" [--qml file]", 2)
+
+
+def widget_generate(args):
+    """Installs an AI-written plasmoid (--qml main.qml) as os.houssam.widget.<name> and adds it."""
+    idea, qml, name = [], None, None
+    it = iter(args)
+    for a in it:
+        if a == "--qml":
+            qml = next(it, None)
+        elif a == "--name":
+            name = next(it, None)
+        else:
+            idea.append(a)
+    idea = " ".join(idea).strip()
+    if not idea and not qml:
+        raise Fail('usage: hosctl widget generate "<idea>" [--qml main.qml] [--name name]', 2)
+    wtype = "custom-" + (slugify(name or idea)[:40] or "widget")
+    pkg = os.path.join(DATA, "plasma/plasmoids", WIDGET_PREFIX + wtype)
+    if qml:
+        src = os.path.realpath(os.path.expanduser(qml))
+        if not os.path.isfile(src):
+            raise Fail(f"No such file: {qml}")
+        text = open(src, encoding="utf-8", errors="replace").read()
+        if "PlasmoidItem" not in text:
+            raise Fail("The QML must have a PlasmoidItem as its root (import org.kde.plasma.plasmoid)", 2)
+    else:
+        cur = current_theme()
+        colors = cur.get("colors", {})
+        text = WIDGET_FALLBACK_QML.replace("@TEXT@", json.dumps(idea)).replace(
+            "@FG@", colors.get("fg", "#e8ecf4")).replace("@ACCENT@", cur.get("accent", "#4c8dff"))
+    write_file(os.path.join(pkg, "contents/ui/main.qml"), text)
+    write_file(os.path.join(pkg, "metadata.json"), json.dumps({
+        "KPackageStructure": "Plasma/Applet",
+        "KPlugin": {"Id": WIDGET_PREFIX + wtype, "Name": (name or idea or wtype)[:60],
+                    "Description": idea[:120], "Category": "Miscellaneous", "Icon": "preferences-desktop-widgets",
+                    "Authors": [{"Name": "Lumi"}], "License": "GPL-2.0-or-later", "Version": "1.0"},
+        "X-Plasma-API-Minimum-Version": "6.0"}, indent=1))
+    snapshot(f"widget generate {wtype}", extra=[])
+    wid = plasma_js(f"var w = desktops()[0].addWidget('{WIDGET_PREFIX}{wtype}', 120, 120, 320, 200); print(w.id);")
+    done(f"Made a new widget: {wtype} 🧩", id=int(wid) if wid.isdigit() else wid, type=wtype, folder=pkg)
+
+
+WIDGET_FALLBACK_QML = '''import QtQuick
+import QtQuick.Layouts
+import org.kde.plasma.plasmoid
+
+PlasmoidItem {
+    preferredRepresentation: fullRepresentation
+    Plasmoid.backgroundHints: "TranslucentBackground"
+    fullRepresentation: Rectangle {
+        Layout.preferredWidth: 320
+        Layout.preferredHeight: 120
+        radius: 18
+        color: Qt.rgba(0.08, 0.09, 0.14, 0.55)
+        border.color: Qt.rgba(1, 1, 1, 0.13)
+        Text {
+            anchors.fill: parent
+            anchors.margins: 18
+            text: @TEXT@
+            color: "@FG@"
+            wrapMode: Text.WordWrap
+            font.family: "Inter"
+            font.pixelSize: 18
+            verticalAlignment: Text.AlignVCenter
+        }
+        Rectangle { width: 4; radius: 2; color: "@ACCENT@"; anchors { left: parent.left; top: parent.top; bottom: parent.bottom; margins: 14 } }
+    }
+}
+'''
+
+
+# ---------------------------------------------------------------------------------------------
+# Capabilities and help
+
+COMMANDS = [
+    ("capabilities", "capabilities [--json]", "What hosctl can do (Lumi reads this)"),
+    ("help", "help", "This list"),
+    ("theme list", "theme list", "Installed themes"),
+    ("theme current", "theme current", "The theme in use, with its colours and accent"),
+    ("theme set", "theme set <name>", "Apply a theme everywhere: colours, accent, icons, cursor, fonts, wallpaper, terminal, GTK"),
+    ("theme generate", 'theme generate "<idea>" [--palette JSON] [--mode dark|light] [--accent #hex] [--name N] [--html file] [--wallpaper file]',
+     "Make a new theme from an idea or an exact palette, and apply it"),
+    ("wallpaper set", "wallpaper set <file>", "Wallpaper on every screen and the lock screen (image, wallpaper folder or HTML)"),
+    ("accent set", "accent set <#RRGGBB|name>", "Accent/highlight colour (" + ", ".join(sorted(ACCENT_NAMES)) + ")"),
+    ("mode", "mode dark|light", "Switch to the dark or light version of the look"),
+    ("icons list", "icons list", "Installed icon themes"),
+    ("icons set", "icons set <icon-theme>", "Icon theme"),
+    ("app-icon set", "app-icon set <app> <png>", "Give one app a custom icon"),
+    ("app-icon reset", "app-icon reset <app>", "Give an app its normal icon back"),
+    ("font set", 'font set "<family>" [size]', "Interface font (a monospace font goes to the terminal)"),
+    ("bar position", "bar position top|bottom|left|right", "Move the top bar"),
+    ("bar size", "bar size <px>", "Top bar height"),
+    ("bar autohide", "bar autohide on|off", "Hide the top bar until the pointer touches the edge"),
+    ("bar style", "bar style floating|attached", "Floating or edge-attached top bar"),
+    ("dock position", "dock position top|bottom|left|right", "Move the dock"),
+    ("dock size", "dock size <px>", "Dock height"),
+    ("dock autohide", "dock autohide on|off", "Hide the dock until the pointer touches the edge"),
+    ("dock style", "dock style floating|attached", "Floating or edge-attached dock"),
+    ("widget types", "widget types", "Widget types that can be added"),
+    ("widget list", "widget list", "Widgets on the desktop, with their ids"),
+    ("widget add", "widget add <type> [--x N --y N] [--options JSON]", "Add a desktop widget"),
+    ("widget remove", "widget remove <id|type>", "Remove desktop widgets"),
+    ("widget generate", 'widget generate "<idea>" [--qml main.qml] [--name N]', "Install an AI-written widget (QML with a PlasmoidItem root) and add it"),
+    ("setting list", "setting list", "Settings that can be changed"),
+    ("setting set", "setting set <key> <value>", "Change a setting: " + ", ".join(f"{k} {v}" for k, v in SETTINGS.items())),
+    ("undo", "undo", "Undo the last change"),
+    ("history", "history", "Changes that can be undone"),
+    ("reset", "reset", "Back to the HoussamOS look"),
+]
+
+
+def cmd_capabilities(args):
+    data = {"version": VERSION, "commands": [{"name": n, "usage": u, "help": h} for n, u, h in COMMANDS],
+            "themes": sorted(theme_dirs()), "widgets": sorted(widget_types()),
+            "accent_names": sorted(ACCENT_NAMES), "settings": SETTINGS, "current_theme": current_theme()}
+    print(json.dumps(data, ensure_ascii=False, indent=None if JSON_OUT else 1))
+    sys.exit(0)
+
+
+def cmd_help(args):
+    width = max(len(u) for _, u, _ in COMMANDS)
+    print("hosctl: change the HoussamOS look with one command (add --json for JSON output)\n")
+    print("\n".join(f"  hosctl {u.ljust(width)}  {h}" for _, u, h in COMMANDS))
+    sys.exit(0)
+
+
+def main(argv):
+    global JSON_OUT
+    if "--json" in argv:
+        JSON_OUT = True
+        argv = [a for a in argv if a != "--json"]
+    os.makedirs(HISTORY, exist_ok=True)
+    cmd, args = (argv[0] if argv else "help"), argv[1:]
+    handlers = {
+        "capabilities": cmd_capabilities, "help": cmd_help, "--help": cmd_help, "-h": cmd_help,
+        "theme": cmd_theme, "wallpaper": cmd_wallpaper, "accent": cmd_accent, "mode": cmd_mode,
+        "icons": cmd_icons, "app-icon": cmd_app_icon, "font": cmd_font, "setting": cmd_setting,
+        "widget": cmd_widget, "undo": cmd_undo, "history": cmd_history, "reset": cmd_reset,
+        "bar": lambda a: cmd_panel("bar", a), "dock": lambda a: cmd_panel("dock", a),
+    }
+    if cmd not in handlers:
+        raise Fail(f"Unknown command '{cmd}' (try: hosctl help)", 2)
+    handlers[cmd](args)
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except Fail as e:
+        if JSON_OUT:
+            print(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False))
+        else:
+            print(str(e), file=sys.stderr)
+        sys.exit(e.code)
+    except KeyboardInterrupt:
+        sys.exit(130)

@@ -1,0 +1,32 @@
+{
+ "name": "Everforest",
+ "author": "HoussamOS",
+ "mode": "dark",
+ "accent": "#a7c080",
+ "colors": {
+  "bg": "#2d353b",
+  "fg": "#d3c6aa",
+  "c0": "#343f44",
+  "c1": "#e67e80",
+  "c2": "#a7c080",
+  "c3": "#dbbc7f",
+  "c4": "#7fbbb3",
+  "c5": "#d699b6",
+  "c6": "#83c092",
+  "c7": "#d3c6aa",
+  "c8": "#859289",
+  "c9": "#e67e80",
+  "c10": "#a7c080",
+  "c11": "#dbbc7f",
+  "c12": "#7fbbb3",
+  "c13": "#d699b6",
+  "c14": "#83c092",
+  "c15": "#d3c6aa"
+ },
+ "icons": "Papirus-Dark",
+ "cursor": "Bibata-Modern-Ice",
+ "font": "Inter",
+ "mono_font": "JetBrains Mono",
+ "radius": 12,
+ "wallpaper": "wallpaper.jpg"
+}

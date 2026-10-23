@@ -1,0 +1,32 @@
+{
+ "name": "Nord",
+ "author": "HoussamOS",
+ "mode": "dark",
+ "accent": "#88c0d0",
+ "colors": {
+  "bg": "#2e3440",
+  "fg": "#d8dee9",
+  "c0": "#3b4252",
+  "c1": "#bf616a",
+  "c2": "#a3be8c",
+  "c3": "#ebcb8b",
+  "c4": "#81a1c1",
+  "c5": "#b48ead",
+  "c6": "#88c0d0",
+  "c7": "#e5e9f0",
+  "c8": "#4c566a",
+  "c9": "#bf616a",
+  "c10": "#a3be8c",
+  "c11": "#ebcb8b",
+  "c12": "#81a1c1",
+  "c13": "#b48ead",
+  "c14": "#8fbcbb",
+  "c15": "#eceff4"
+ },
+ "icons": "Papirus-Dark",
+ "cursor": "Bibata-Modern-Ice",
+ "font": "Inter",
+ "mono_font": "JetBrains Mono",
+ "radius": 12,
+ "wallpaper": "wallpaper.jpg"
+}

@@ -1,0 +1,28 @@
+{
+ "name": "HoussamOS",
+ "author": "HoussamOS",
+ "mode": "dark",
+ "accent": "#4c8dff",
+ "pair": "houssamos-light",
+ "colors": {
+  "bg": "#14182a",
+  "fg": "#e8ecf4",
+  "c0": "#0e1220",
+  "c1": "#ff5c7a",
+  "c2": "#3ddc97",
+  "c3": "#ffb547",
+  "c4": "#4c8dff",
+  "c5": "#8b6cff",
+  "c6": "#5ad1ff",
+  "c7": "#b6bed0"
+ },
+ "color_scheme": "HoussamOSDark",
+ "konsole_scheme": "HoussamOS",
+ "plasma_theme": "houssamos-glass",
+ "icons": "HoussamOS-LiquidGlass",
+ "cursor": "HoussamOS-Cursor",
+ "wallpaper": "/usr/share/wallpapers/HoussamOS",
+ "font": "Inter",
+ "mono_font": "JetBrains Mono",
+ "radius": 12
+}
