@@ -1,0 +1,22 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Id": "os.houssam.widget.countdown",
+        "Name": "HoussamOS Countdown",
+        "Description": "Days left until a date",
+        "Icon": "chronometer",
+        "Category": "Date and Time",
+        "Authors": [
+            {
+                "Name": "Houssam"
+            }
+        ],
+        "License": "GPL-2.0-or-later",
+        "Version": "1.0",
+        "Website": "https://github.com/Houssam-2021/housos",
+        "FormFactors": [
+            "desktop"
+        ]
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

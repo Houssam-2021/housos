@@ -1,0 +1,22 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Id": "os.houssam.widget.system",
+        "Name": "HoussamOS System",
+        "Description": "CPU, memory, graphics card and temperatures",
+        "Icon": "utilities-system-monitor",
+        "Category": "System Information",
+        "Authors": [
+            {
+                "Name": "Houssam"
+            }
+        ],
+        "License": "GPL-2.0-or-later",
+        "Version": "1.0",
+        "Website": "https://github.com/Houssam-2021/housos",
+        "FormFactors": [
+            "desktop"
+        ]
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

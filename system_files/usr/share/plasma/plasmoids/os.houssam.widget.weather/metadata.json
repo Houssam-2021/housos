@@ -1,0 +1,22 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Id": "os.houssam.widget.weather",
+        "Name": "HoussamOS Weather",
+        "Description": "Current weather and today's range (Open-Meteo)",
+        "Icon": "weather-few-clouds",
+        "Category": "Environment and Weather",
+        "Authors": [
+            {
+                "Name": "Houssam"
+            }
+        ],
+        "License": "GPL-2.0-or-later",
+        "Version": "1.0",
+        "Website": "https://github.com/Houssam-2021/housos",
+        "FormFactors": [
+            "desktop"
+        ]
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

@@ -246,10 +246,16 @@ Houssam's desktop assistant Lumi (separate repo, Python + PyQt6) customizes the 
   to Ctrl+Alt+L, also for existing accounts via LOOK_VERSION 6). No secret = built without Lumi.
   Careful: raising LOOK_VERSION re-applies the whole HoussamOS look and would undo a user's
   hosctl theme; make future LOOK bumps targeted.
-- To do: phase B widgets (plasmoids os.houssam.widget.<type>: clock, date, weather, system, disk,
-  network, battery, media, calendar, notes, todo, quote, countdown, steam-recent), phase C Lumi
-  packaging (needs the Lumi source/release URL from Houssam), autostart + Meta+L, first-boot theme
-  picker, phase D Lumi Link (firewall home zone, portal screen share, indicator, `hosctl link`).
+- Widgets (phase B): `branding/make_widgets.py` -> `system_files/usr/share/plasma/plasmoids/os.houssam.widget.*`
+  (clock, date, weather (Open-Meteo, option city/unit), system/disk/network (org.kde.ksysguard.sensors),
+  battery (/sys), media (mpris), calendar, notes, todo, quote, countdown (options target/label),
+  steam-recent). Standard Plasma background = HoussamOS glass with blur; colours from Kirigami.Theme.
+  QML passes qmllint syntax checks; not yet run on Plasma.
+- Feature scripts are at /ctx/<name>.sh in the build (the Containerfile copies build_files/ to /ctx);
+  the first Lumi build silently skipped Lumi because the hook looked in /ctx/build_files/.
+- Workflow annotations printed from inside `podman build` (::warning/::error) did NOT show up on the
+  run (checked 2026-10-23); verify features by looking inside the published image instead.
+- To do: first-boot theme picker, phase D Lumi Link (firewall home zone, portal screen share, indicator, `hosctl link`).
   Note: Fedora's default firewalld zone on desktops (FedoraWorkstation) already allows ports
   1025-65535, so "home zone only" needs a zone decision.
 

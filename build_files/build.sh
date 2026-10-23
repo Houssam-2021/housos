@@ -377,11 +377,12 @@ fi
 # dnf5 install -y <package>
 
 ### HoussamOS features: each has its own install script in build_files/ (apps, services,
-# branding clean-up); they run here, before the repositories are cleaned up
+# branding clean-up); they run here, before the repositories are cleaned up. The Containerfile
+# copies build_files/ to /ctx itself, so they are /ctx/<feature>.sh
 for feature in lumi branding-cleanup welcome timeline gamecheck gamemode privacy guest; do
-    if [ -f "/ctx/build_files/$feature.sh" ]; then
+    if [ -f "/ctx/$feature.sh" ]; then
         echo "Feature: $feature"
-        bash "/ctx/build_files/$feature.sh"
+        bash "/ctx/$feature.sh"
     fi
 done
 
