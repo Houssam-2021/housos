@@ -49,6 +49,12 @@ mkdir -p /usr/lib/lumi
 cp -a "$src/lumi/." /usr/lib/lumi/
 ln -sf /usr/lib/lumi/lumi /usr/bin/lumi
 install -Dm644 "$src/lumi.png" /usr/share/icons/hicolor/256x256/apps/lumi.png
+# Smoke test: a Lumi that can't start must not ship
+if ! QT_QPA_PLATFORM=offscreen LUMI_CONFIG_DIR=/tmp/lumi-test timeout 120 /usr/bin/lumi --selftest; then
+    echo "::error title=Lumi self-test failed::lumi --selftest did not exit 0"
+    exit 1
+fi
+rm -rf /tmp/lumi-test
 
 # App menu entry, autostart (its first launch is the HoussamOS welcome), and Meta+L
 desktop=/usr/share/houssamos/lumi/lumi.desktop
