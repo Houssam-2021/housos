@@ -137,6 +137,8 @@ dnf5 install -y --enablerepo=terra darkly bibata-cursor-theme tela-icon-theme
 # hosctl themes (Tokyo Night, Catppuccin, Nord...) use Papirus icons; hosctl falls back to the
 # HoussamOS icons if they are missing
 dnf5 install -y papirus-icon-theme || echo "WARNING: papirus-icon-theme not installed"
+# Colour emoji: Lumi's buttons and chat, hosctl messages and widgets use them
+dnf5 install -y google-noto-color-emoji-fonts
 chmod 755 /usr/bin/hosctl
 if command -v gtk-update-icon-cache > /dev/null; then
     for theme in /usr/share/icons/*/; do
