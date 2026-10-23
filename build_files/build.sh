@@ -378,7 +378,7 @@ fi
 
 ### HoussamOS features: each has its own install script in build_files/ (apps, services,
 # branding clean-up); they run here, before the repositories are cleaned up
-for feature in branding-cleanup welcome timeline gamecheck gamemode privacy guest; do
+for feature in lumi branding-cleanup welcome timeline gamecheck gamemode privacy guest; do
     if [ -f "/ctx/build_files/$feature.sh" ]; then
         echo "Feature: $feature"
         bash "/ctx/build_files/$feature.sh"

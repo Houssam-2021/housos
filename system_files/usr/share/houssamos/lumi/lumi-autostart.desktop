@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Lumi
+Comment=Your AI companion - customize HoussamOS by just asking
+Exec=lumi
+Icon=lumi
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-phase=2

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Lumi
+GenericName=AI assistant
+Comment=Your AI companion - customize HoussamOS by just asking
+Exec=lumi
+Icon=lumi
+Terminal=false
+Categories=Utility;
+StartupNotify=false
+X-KDE-Shortcuts=Meta+L

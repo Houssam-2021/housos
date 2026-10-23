@@ -5,9 +5,10 @@
 # settings, which override the system-wide HoussamOS defaults. This puts the HoussamOS Global
 # Theme, wallpaper, icons, fonts and terminal profile in place for them. It runs again only when
 # LOOK_VERSION is raised (4 = HoussamOS cursor, 5 = HoussamOS light and dark looks for the dark
-# mode switch), so after that the user's own changes are left alone.
+# mode switch, 6 = Meta+L opens Lumi, screen lock on Ctrl+Alt+L), so after that the user's own
+# changes are left alone.
 
-LOOK_VERSION=5
+LOOK_VERSION=6
 config="${XDG_CONFIG_HOME:-$HOME/.config}"
 marker="$config/houssamos-look-version"
 
@@ -38,6 +39,12 @@ kwriteconfig6 --file kdeglobals --group General --key toolBarFont "$ui"
 kwriteconfig6 --file kdeglobals --group General --key smallestReadableFont "Inter,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"
 kwriteconfig6 --file kdeglobals --group General --key fixed "JetBrains Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"
 kwriteconfig6 --file kdeglobals --group WM --key activeFont "Inter,10,-1,5,600,0,0,0,0,0,0,0,0,0,0,1"
+
+# Meta+L belongs to Lumi when it is installed; the screen lock moves to Ctrl+Alt+L
+if [ -x /usr/bin/lumi ]; then
+    kwriteconfig6 --file kglobalshortcutsrc --group ksmserver --key "Lock Session" \
+        $'Ctrl+Alt+L\tScreensaver,Ctrl+Alt+L\tScreensaver,Lock Session'
+fi
 
 # Bazzite's welcome app, copied into accounts created before HoussamOS
 rm -f "$config/autostart/bazzite-portal.desktop"

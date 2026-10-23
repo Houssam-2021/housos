@@ -128,6 +128,13 @@ build $target_image=image_name $tag=default_tag:
     LABELS+=("--label" "org.opencontainers.image.vendor={{ repo_organization }}")
 
     # This actually builds the image!
+    # Token for the private Lumi release, passed as a build secret (never stored in the image);
+    # an empty one makes build_files/lumi.sh skip Lumi
+    LUMI_SECRET=$(mktemp)
+    trap 'rm -f "$LUMI_SECRET"' EXIT
+    printf '%s' "${LUMI_RELEASE_TOKEN:-}" > "$LUMI_SECRET"
+    BUILD_ARGS+=("--secret" "id=lumi_token,src=${LUMI_SECRET}")
+
     PODMAN_BUILD_ARGS=("${BUILD_ARGS[@]}" "${LABELS[@]}" --pull=newer --tag "${target_image}:${tag}" --file Containerfile)
 
     podman build "${PODMAN_BUILD_ARGS[@]}" .

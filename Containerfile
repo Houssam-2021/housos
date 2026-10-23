@@ -35,7 +35,9 @@ ARG IMAGE_NAME=houssamos
 ## make modifications desired in your image and install packages by modifying the build.sh script
 ## the following RUN directive does all the things required to run "build.sh" as recommended.
 
+# lumi_token: read-only token for the private Lumi release (build_files/lumi.sh); may be empty
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=secret,id=lumi_token \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
